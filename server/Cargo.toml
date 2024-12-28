@@ -1,0 +1,24 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+trait-variant.workspace = true
+axum.workspace = true
+tower.workspace = true
+fastwebsockets.workspace = true
+tower-http.workspace = true
+tokio.workspace = true
+postcard.workspace = true
+kanal.workspace = true
+bevy.workspace = true
+uuid.workspace = true
+leptos.workspace = true
+leptos_axum.workspace = true
+leptos_router.workspace = true
+serde.workspace = true
+eyre.workspace = true
+sqlx.workspace = true
+
+session = { path = "../session" }
