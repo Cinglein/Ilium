@@ -1,6 +1,9 @@
 use leptos::{leptos_dom::helpers::TimeoutHandle, *};
-use serde::{de::DeserializeOwned, Serialize};
-use session::msg::{Message, Msg};
+use session::{
+    info::StateInfo,
+    msg::{Message, Msg},
+    queue::Queue,
+};
 use wasm_bindgen::prelude::*;
 use web_sys::{BinaryType, Event, MessageEvent, WebSocket};
 
@@ -15,7 +18,7 @@ pub enum Ready {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct Handle<I: 'static + Serialize + DeserializeOwned> {
+pub struct Handle<I: 'static + Message> {
     ready: Signal<Ready>,
     connect: StoredValue<Option<std::rc::Rc<dyn Fn()>>>,
     reconnect: StoredValue<u64>,
@@ -23,7 +26,7 @@ pub struct Handle<I: 'static + Serialize + DeserializeOwned> {
     pub set_info: WriteSignal<StateInfo<I>>,
 }
 
-impl<I: 'static + Serialize + DeserializeOwned> Handle<I> {
+impl<I: 'static + Message> Handle<I> {
     pub fn open(&self) {
         if self.ready.get_untracked() == Ready::Closed {
             self.reconnect.set_value(0);
@@ -44,21 +47,21 @@ impl<I: 'static + Serialize + DeserializeOwned> Handle<I> {
         self.open();
         if self.ready.get_untracked() == Ready::Open {
             if let Some(ws) = self.ws.get_value() {
-                let _ = ws.send_with_u8_array(&data);
+                let _ = ws.send_with_u8_array(data);
                 logging::log!("sent {data:?}");
             } else {
                 logging::log!("no websocket");
             }
         }
     }
-    pub fn send<M: Message, Q: Message>(&self, msg: Msg<M, Q>) {
-        if let Ok(data) = postcard::to_allocvec::<Msg<M, Q>>(&msg) {
+    pub fn send<Q: Queue>(&self, msg: Msg<Q>) {
+        if let Ok(data) = postcard::to_allocvec::<Msg<Q>>(&msg) {
             self.send_raw(&data);
         }
     }
 }
 
-pub fn ws_handle<I: 'static + Serialize + DeserializeOwned>(
+pub fn ws_handle<I: 'static + Message>(
     url: &'static str,
     set_info: WriteSignal<StateInfo<I>>,
 ) -> Handle<I> {
@@ -77,7 +80,7 @@ pub fn ws_handle<I: 'static + Serialize + DeserializeOwned>(
         Some(std::rc::Rc::new(move || {
             let ws_not_open = ws
                 .clone()
-                .map_or(false, |ws: WebSocket| ws.ready_state() != WebSocket::OPEN);
+                .is_some_and(|ws: WebSocket| ws.ready_state() != WebSocket::OPEN);
             if ws_not_open && reconnect_times_ref.get_value() < RECONNECT_LIMIT {
                 set_ready(Ready::Connecting);
                 reconnect_timer_ref.set_value(

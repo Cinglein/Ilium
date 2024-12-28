@@ -93,7 +93,7 @@ pub fn matchmake<QC: QueueComponent, U: UserData>(
     for (_entity, user) in users.iter() {
         let valid: Vec<_> = users
             .iter()
-            .filter_map(|(e, u)| (!taken.contains(e) && user.matchmake_valid(&u)).then_some(*e))
+            .filter_map(|(e, u)| (!taken.contains(e) && user.matchmake_valid(u)).then_some(*e))
             .collect();
         valid.iter().for_each(|e| {
             taken.insert(*e);

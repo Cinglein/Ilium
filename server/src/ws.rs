@@ -35,6 +35,7 @@ async fn parse_message<Q: Queue, U: UserData>(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn read<F: tokio::io::AsyncRead + Unpin, Q: Queue, U: UserData>(
     mut ws: FragmentCollectorRead<F>,
     token: &mut Option<ClientToken>,
@@ -66,13 +67,12 @@ async fn read<F: tokio::io::AsyncRead + Unpin, Q: Queue, U: UserData>(
                 )
                 .await;
             }
-            OpCode::Pong => match *recv_ts.borrow() {
-                Some(ts) => {
+            OpCode::Pong => {
+                if let Some(ts) = *recv_ts.borrow() {
                     let elapsed = Instant::now().duration_since(ts).as_millis();
                     send_ping.send(Some(elapsed))?;
                 }
-                _ => (),
-            },
+            }
             _ => {}
         }
     }
@@ -108,12 +108,14 @@ async fn handle_client<Q: Queue, U: UserData>(
         }
     });
     let heartbeat = tokio::task::spawn(async move {
-        while let Ok(_) = {
+        while {
             let frame = Frame::new(true, OpCode::Ping, None, Payload::Owned(Vec::new()));
             send_ts.send(Some(Instant::now()))?;
             send_heartbeat.send(frame).await?;
             Ok::<_, eyre::Report>(())
-        } {
+        }
+        .is_ok()
+        {
             sleep(Duration::from_secs(3)).await;
         }
         Ok::<_, eyre::Report>(())

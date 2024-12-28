@@ -13,7 +13,7 @@ pub trait UserData:
     fn matchmake_valid(&self, user_data: &Self) -> bool;
 }
 
-pub async fn query_data<'p, U: UserData>(pool: &Pool<Any>, account: &Account) -> eyre::Result<U> {
+pub async fn query_data<U: UserData>(pool: &Pool<Any>, account: &Account) -> eyre::Result<U> {
     let res = <&Pool<Any> as Executor>::fetch_one(pool, U::query(account)).await?;
     let res = U::from_row(&res)?;
     Ok(res)
