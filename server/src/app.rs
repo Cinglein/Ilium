@@ -52,6 +52,7 @@ impl App {
             ))
             .add_systems(Update, tick)
             .insert_resource(AccountMap::default());
+        Q::register(&mut bevy_app);
         receivers.insert(&mut bevy_app);
         Self {
             axum_router,

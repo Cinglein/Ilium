@@ -1,6 +1,21 @@
+[package]
+name = "ilium"
+version = "0.1.0"
+edition = "2024"
+
 [workspace]
 resolver = "2"
-members = ["client", "server", "session"]
+members = ["client", "macros", "server", "session"]
+
+[features]
+server = ["session/server", "macros/server"]
+client = ["macros/client"]
+
+[dependencies]
+macros = { path = "macros" }
+session = { path = "session" }
+server = { path = "server" }
+client = { path = "client" }
 
 [workspace.dependencies]
 trait-variant = "0.1.2"

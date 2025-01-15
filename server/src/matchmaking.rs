@@ -95,11 +95,12 @@ pub fn matchmake<QC: QueueComponent, U: UserData>(
             .iter()
             .filter_map(|(e, u)| (!taken.contains(e) && user.matchmake_valid(u)).then_some(*e))
             .collect();
-        valid.iter().for_each(|e| {
-            taken.insert(*e);
-        });
-        if let Ok(lobby) = QC::Lobby::try_from(valid) {
-            for entity in lobby.iter() {
+        let lobby = QC::Lobby::try_from(&valid).ok();
+        if let Some(lobby) = lobby {
+            valid.into_iter().for_each(|e| {
+                taken.insert(e);
+            });
+            for entity in lobby.entities() {
                 if let Ok(user) = in_queue.get(entity) {
                     let shared_state = <QC::Action as Action>::Shared::default();
                     let session_id = EntityId(commands.spawn(shared_state).id());
