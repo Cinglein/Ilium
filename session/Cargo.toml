@@ -3,6 +3,9 @@ name = "session"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+server = []
+
 [dependencies]
 serde.workspace = true
 bevy.workspace = true

@@ -21,4 +21,4 @@ serde.workspace = true
 eyre.workspace = true
 sqlx.workspace = true
 
-session = { path = "../session" }
+session = { path = "../session", features = ["server"] }

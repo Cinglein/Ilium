@@ -1,29 +1,34 @@
 use crate::{action::Action, msg::Message};
-use bevy::{ecs::system::EntityCommands, prelude::*};
+use bevy::{app::Update, prelude::*};
 
-pub trait Lobby: Default + Component + TryFrom<Vec<Entity>> {
-    fn iter(&self) -> impl Iterator<Item = Entity>;
-    fn join(&mut self, entity: Entity) -> bool;
+pub trait IliumApp {
+    fn register<M>(&mut self, t: impl IntoSystemConfigs<M>);
+}
+
+impl IliumApp for App {
+    fn register<M>(&mut self, system: impl IntoSystemConfigs<M>) {
+        self.add_systems(Update, system);
+    }
+}
+
+pub trait Lobby: Component + for<'a> TryFrom<&'a [Entity]> {
+    fn entities(&self) -> impl Iterator<Item = Entity>;
 }
 
 pub trait Queue: Message {
     type Action: Action;
-    fn register(app: &mut App);
-    fn insert(&self, ec: &mut EntityCommands);
+    fn register<A: IliumApp>(app: &mut A);
+    fn insert(&self, ec: &mut bevy::ecs::system::EntityCommands);
 }
 
 pub trait QueueComponent: Component {
-    const FIXED: bool;
-    const LOBBY: usize;
-    const PARTY: usize;
     type Queue: Queue;
-    type Info: Message
-        + for<'a> TryFrom<(
-            &'a <Self::Action as Action>::Shared,
-            &'a [<Self::Action as Action>::User],
-        )>;
+    type Info: Message;
     type Lobby: Lobby;
     type Action: Action;
-    fn info() -> Self::Info;
-    fn lobby() -> Self::Lobby;
+    fn info(
+        index: usize,
+        users: &[<Self::Action as Action>::User],
+        shared: &<Self::Action as Action>::Shared,
+    ) -> Self::Info;
 }

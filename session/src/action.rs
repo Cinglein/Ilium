@@ -1,7 +1,7 @@
-use crate::{msg::Message, state::State};
+use crate::{msg::Message, state::*};
 
-pub trait Action: Sized + Message {
-    type Shared: State;
-    type User: State;
-    fn resolve(action: Option<Self>, shared: &mut Self::Shared, user: &mut [Self::User]);
+pub trait Action: Sized + Copy + Message {
+    type Shared: SharedState;
+    type User: UserState;
+    fn resolve(action: Option<Self>, shared: &mut Self::Shared, users: &mut [Self::User]);
 }
