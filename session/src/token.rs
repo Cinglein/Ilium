@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
+use rkyv::{Archive, Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Archive, Serialize, Deserialize)]
 pub enum ClientToken {
     Guest,
 }

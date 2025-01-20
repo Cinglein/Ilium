@@ -6,19 +6,22 @@ edition = "2021"
 [dependencies]
 trait-variant.workspace = true
 axum.workspace = true
-tower.workspace = true
 fastwebsockets.workspace = true
-tower-http.workspace = true
-tokio.workspace = true
-postcard.workspace = true
 kanal.workspace = true
 bevy.workspace = true
 uuid.workspace = true
 leptos.workspace = true
 leptos_axum.workspace = true
 leptos_router.workspace = true
-serde.workspace = true
 eyre.workspace = true
-sqlx.workspace = true
+rkyv.workspace = true
+
+sqlx = { version = "0.8.3", features = [
+  "runtime-tokio-rustls",
+  "chrono",
+] }
+tokio = { version = "1", features = ["sync", "time", "rt-multi-thread"] }
+tower = { version = "0.4" }
+tower-http = { version = "0.5", features = ["fs"] }
 
 session = { path = "../session", features = ["server"] }

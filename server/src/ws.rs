@@ -20,7 +20,7 @@ async fn parse_message<Q: Queue, U: UserData>(
     send_frame: SendFrame,
     ping: Ping,
 ) -> Option<ClientToken> {
-    match postcard::from_bytes::<Msg<Q>>(msg) {
+    match rkyv::from_bytes::<Msg<Q>, _>(msg) {
         Ok(msg) => {
             let token = msg.token;
             if let Err(e) = sender.send(msg, ip, send_frame, ping).await {

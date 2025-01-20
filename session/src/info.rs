@@ -1,8 +1,7 @@
 use crate::{msg::Message, state::*};
-use serde::{Deserialize, Serialize};
+use rkyv::{Archive, Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(bound = "I: Message")]
+#[derive(Archive, Serialize, Deserialize, Clone, Debug)]
 pub enum StateInfo<I: 'static + Message> {
     Closed,
     Queue,
@@ -10,15 +9,14 @@ pub enum StateInfo<I: 'static + Message> {
     Session(I),
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Archive, Serialize, Deserialize, Clone, Debug)]
 pub struct Info<U: UserState, S: SharedState> {
     pub users: Vec<U::Info>,
     pub shared: S::Info,
 }
 
 /// A wrapper for data that is only sometimes visible.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(bound = "T: Message")]
+#[derive(Clone, Debug, Archive, Serialize, Deserialize)]
 pub enum Hidden<T: Message> {
     Unseen,
     Seen(T),

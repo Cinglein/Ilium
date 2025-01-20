@@ -1,6 +1,6 @@
 use crate::{data::UserData, send::Sender};
 use axum::extract::FromRef;
-use leptos::*;
+use leptos::prelude::*;
 use session::queue::Queue;
 
 pub trait AppState: 'static + Clone + Send + Sync
@@ -47,5 +47,17 @@ where
             sender,
             user_defined,
         }
+    }
+}
+
+impl<Q, U, App> FromRef<SenderAppState<Q, U, App>> for LeptosOptions
+where
+    Q: Queue,
+    U: UserData,
+    App: AppState,
+    LeptosOptions: FromRef<App>,
+{
+    fn from_ref(input: &SenderAppState<Q, U, App>) -> Self {
+        LeptosOptions::from_ref(&input.user_defined)
     }
 }

@@ -1,6 +1,8 @@
 use crate::{account::Account, auth::auth, data::*, time::Ping};
 use bevy::ecs::system::Resource;
-use serde::Serialize;
+use rkyv::{
+    api::high::HighSerializer, rancor::Source, ser::allocator::ArenaHandle, util::*, Serialize,
+};
 use session::{
     msg::{Msg, MsgType},
     queue::Queue,
@@ -29,13 +31,17 @@ impl SendFrame {
     pub fn send_raw(&self, frame: fastwebsockets::Frame<'static>) {
         let _ = self.0.send(frame);
     }
-    pub fn send<T: Serialize>(&self, data: &T) {
-        if let Ok(bytes) = postcard::to_allocvec(data) {
+    pub fn send<T, E>(&self, data: &T)
+    where
+        E: Source,
+        T: for<'a> Serialize<HighSerializer<AlignedVec, ArenaHandle<'a>, E>>,
+    {
+        if let Ok(bytes) = rkyv::to_bytes(data) {
             let frame = fastwebsockets::Frame::new(
                 true,
                 fastwebsockets::OpCode::Binary,
                 None,
-                bytes.into(),
+                bytes.into_vec().into(),
             );
             let _ = self.0.send(frame);
         }
@@ -83,16 +89,27 @@ impl<Q: Queue, U: UserData> Receivers<Q, U> {
     }
 }
 
-#[derive(Clone, Debug, Resource)]
+#[derive(Debug, Resource)]
 pub struct Sender<Q: Queue, U: UserData> {
-    pub pool: Pool<Any>,
+    pub pool: Pool<U::DB>,
     pub queue: kanal::Sender<QueueSignal<Q, U>>,
     pub reconnect: kanal::Sender<ReconnectSignal>,
     pub action: kanal::Sender<<Q as Queue>::Action>,
 }
 
+impl<Q: Queue, U: UserData> Clone for Sender<Q, U> {
+    fn clone(&self) -> Self {
+        Self {
+            pool: self.pool.clone(),
+            queue: self.queue.clone(),
+            reconnect: self.reconnect.clone(),
+            action: self.action.clone(),
+        }
+    }
+}
+
 impl<Q: Queue, U: UserData> Sender<Q, U> {
-    pub fn new(pool: Pool<Any>) -> (Self, Receivers<Q, U>) {
+    pub fn new(pool: Pool<U::DB>) -> (Self, Receivers<Q, U>) {
         let (queue, receive_queue) = kanal::unbounded();
         let (reconnect, receive_reconnect) = kanal::unbounded();
         let (action, receive_action) = kanal::unbounded();
@@ -120,7 +137,7 @@ impl<Q: Queue, U: UserData> Sender<Q, U> {
         let account = auth(token, ip);
         match msg_type {
             MsgType::Join { queue } => {
-                let user_data = query_data(&self.pool, &account).await?;
+                let user_data = U::query(&self.pool, &account).await?;
                 self.queue.send(QueueSignal::Join {
                     account,
                     queue,

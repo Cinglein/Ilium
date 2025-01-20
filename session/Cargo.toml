@@ -7,5 +7,6 @@ edition = "2021"
 server = []
 
 [dependencies]
-serde.workspace = true
 bevy.workspace = true
+rkyv.workspace = true
+bytecheck.workspace = true

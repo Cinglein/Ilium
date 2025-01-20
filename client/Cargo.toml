@@ -11,4 +11,7 @@ wasm-bindgen.workspace = true
 leptos.workspace = true
 postcard.workspace = true
 
+leptos-use = "0.15.5"
+codee = { version = "0.3.0", features = ["rkyv"] }
+
 session = { path = "../session" }

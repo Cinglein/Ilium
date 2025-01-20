@@ -107,7 +107,7 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
         _ => abort_call_site!("Only structs are supported."),
     };
     let info = quote! {
-        #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize)]
+        #[derive(Debug, Clone, ::rkyv::Archive, ::rkyv::Serialize, ::rkyv::Deserialize)]
         pub struct #info_name {
             #(#open_name: #open_type,)*
             #(#hidden_name: #hidden_type,)*

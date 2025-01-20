@@ -35,13 +35,15 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
     let register = {
         cfg_if::cfg_if! {
             if #[cfg(feature = "server")] {
+                let user_data: Type = name_value(&ast.attrs, "user_data")
+                    .unwrap_or_else(|| abort_call_site!("Could not find user_data attribute"));
                 quote! {
                     #(
-                        app.register(::ilium::server::process_queue::<#component>);
-                        app.register(::ilium::server::reconnect::<#component>);
-                        app.register(::ilium::server::matchmake::<#component>);
+                        app.register(::ilium::server::matchmaking::process_queue::<#component, #user_data>);
+                        app.register(::ilium::server::matchmaking::reconnect::<#component>);
+                        app.register(::ilium::server::matchmaking::matchmake::<#component, #user_data>);
                     )*
-                };
+                }
             } else if #[cfg(feature = "client")] {
                 quote! { () }
             } else {
@@ -50,7 +52,7 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
         }
     };
 
-    let tokens = quote! {
+    quote! {
         impl ::ilium::session::Queue for #queue {
             type Action = #action;
             fn register<A: ::ilium::session::IliumApp>(app: &mut A) {
@@ -106,7 +108,5 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
             }
         )*
     }
-    .into();
-    eprintln!("{tokens}");
-    tokens
+    .into()
 }

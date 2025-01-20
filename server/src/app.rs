@@ -9,8 +9,8 @@ use crate::{
 };
 use axum::{extract::FromRef, routing::get, Router};
 use bevy::prelude::{PluginGroup, Update};
-use leptos::*;
-use leptos_axum::LeptosRoutes;
+use leptos::{logging, prelude::*, IntoView};
+use leptos_axum::{file_and_error_handler, LeptosRoutes};
 use session::queue::{Queue, QueueComponent};
 use sqlx::*;
 
@@ -20,28 +20,28 @@ pub struct App {
 }
 
 impl App {
-    pub fn new<A, Q, U, IV, T, H>(
+    pub fn new<Q, U, A, IV>(
         state: A,
-        routes: Vec<leptos_router::RouteListing>,
-        app: impl Fn() -> IV + Clone + Send + 'static,
-        pool: Pool<Any>,
-        handler: H,
+        shell: fn(LeptosOptions) -> IV,
+        routes: Vec<leptos_axum::AxumRouteListing>,
+        pool: Pool<U::DB>,
     ) -> Self
     where
         A: AppState,
         Q: Queue,
         U: UserData,
-        IV: leptos_dom::IntoView + 'static,
-        T: 'static,
-        H: axum::handler::Handler<T, SenderAppState<Q, U, A>>,
+        IV: IntoView + 'static,
         LeptosOptions: FromRef<A> + FromRef<SenderAppState<Q, U, A>>,
     {
         let (sender, receivers) = Sender::<Q, U>::new(pool);
         let state = SenderAppState::from_sender_and_options(sender, state);
         let axum_router = Router::new()
-            .leptos_routes(&state, routes, app)
+            .leptos_routes(&state, routes, {
+                let leptos_options = LeptosOptions::from_ref(&state);
+                move || shell(leptos_options.clone())
+            })
             .route("/ws", get(ws_handler::<Q, U>))
-            .fallback(handler)
+            .fallback(file_and_error_handler::<SenderAppState<Q, U, A>, IV>(shell))
             .with_state(state);
         let mut bevy_app = bevy::prelude::App::new();
         bevy_app
