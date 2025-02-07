@@ -21,8 +21,8 @@ pub type InLobbyAccepted<'a, 'b, QC> = Query<
         With<Accepted>,
     ),
 >;
-pub type InSession<'a, 'b, L> = Query<'a, 'b, UserQuery<L>>;
-pub type Sessions<'a, 'b, L> = Query<'a, 'b, SessionQuery<L>>;
+pub type InSession<'a, 'b, QC> = Query<'a, 'b, UserQuery<QC>>;
+pub type Sessions<'a, 'b, QC> = Query<'a, 'b, SessionQuery<QC>>;
 
 #[derive(Clone, Copy, Debug, Component)]
 pub struct EntityId(pub Entity);

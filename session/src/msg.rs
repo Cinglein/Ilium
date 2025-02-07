@@ -15,21 +15,26 @@ where
 #[derive(Clone, Copy, Debug, Archive, Serialize, Deserialize)]
 pub struct Msg<Q: Queue> {
     pub token: ClientToken,
+    pub queue: Q,
     pub msg_type: MsgType<Q>,
 }
 
 impl<Q: Queue> Msg<Q> {
-    pub fn leave(token: ClientToken) -> Self {
+    pub fn leave(token: ClientToken, queue: Q) -> Self {
         let msg_type = MsgType::Reconnect;
-        Self { token, msg_type }
+        Self {
+            token,
+            queue,
+            msg_type,
+        }
     }
 }
 
 #[derive(Clone, Copy, Debug, Archive, Serialize, Deserialize)]
 pub enum MsgType<Q: Queue> {
-    Join { queue: Q },
+    Join,
     Reconnect,
     Accept,
     Leave,
-    Action(<Q as Queue>::Action),
+    Action(Q::Action),
 }

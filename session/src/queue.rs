@@ -21,7 +21,7 @@ pub trait Queue: Message {
     fn insert(&self, ec: &mut bevy::ecs::system::EntityCommands);
 }
 
-pub trait QueueComponent: Component {
+pub trait QueueComponent: Component + Default {
     type Queue: Queue;
     type Info: Message;
     type Lobby: Lobby;

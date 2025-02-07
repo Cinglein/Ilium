@@ -9,9 +9,9 @@ web-sys.workspace = true
 js-sys.workspace = true
 wasm-bindgen.workspace = true
 leptos.workspace = true
-postcard.workspace = true
+rkyv.workspace = true
 
 leptos-use = "0.15.5"
-codee = { version = "0.3.0", features = ["rkyv"] }
+codee = { version = "0.2.0", features = ["rkyv"] }
 
 session = { path = "../session" }

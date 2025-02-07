@@ -152,7 +152,7 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
                             } else {
                                 ::ilium::session::Hidden::Unseen
                             },)*
-                            #(#private_name: if index == i { Some(user.#private_name.clone()) } else { None })*
+                            #(#private_name: if index == i { Some(user.#private_name.clone()) } else { None },)*
                         }
                     })
                     .collect()

@@ -33,7 +33,7 @@ eyre = "0.6.12"
 rkyv = { version = "0.8.9", features = ["bytecheck", "alloc"] }
 bytecheck = "0.8.0"
 
-leptos = { version = "0.7", features = ["nightly"] }
+leptos = { version = "0.7", features = ["nightly", "rkyv"] }
 leptos_axum = { version = "0.7", features = [] }
 leptos_meta = { version = "0.7", features = ["nightly"] }
 leptos_router = { version = "0.7", features = ["nightly"] }

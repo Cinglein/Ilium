@@ -12,7 +12,7 @@ pub struct Accepted;
 
 pub fn process_queue<QC: QueueComponent, U: UserData>(
     mut commands: Commands,
-    receiver: ResMut<Receiver<QueueSignal<QC::Queue, U>>>,
+    receiver: ResMut<Receiver<QueueSignal<U>>>,
     accounts: ResMut<AccountMap>,
     in_queue: InQueue<QC, U>,
     in_lobby: InLobby<QC>,
@@ -22,7 +22,6 @@ pub fn process_queue<QC: QueueComponent, U: UserData>(
     while let Ok(Some(msg)) = receiver.try_recv() {
         match msg {
             QueueSignal::Join {
-                queue,
                 send_frame,
                 ping,
                 user_data,
@@ -31,7 +30,7 @@ pub fn process_queue<QC: QueueComponent, U: UserData>(
                 if !accounts.contains_key(&account) {
                     send_frame.send(&StateInfo::Queue::<QC::Info>);
                     let mut ec = commands.spawn((account, ping, user_data, send_frame));
-                    queue.insert(&mut ec);
+                    ec.insert(QC::default());
                     let entity = ec.id();
                     accounts.insert(account, entity);
                 }

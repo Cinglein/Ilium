@@ -2,7 +2,7 @@ use crate::{
     account::AccountMap,
     data::UserData,
     matchmaking::{matchmake, process_queue, reconnect},
-    send::Sender,
+    send::{Receivers, Sender},
     state::{AppState, SenderAppState},
     time::tick,
     ws::ws_handler,
@@ -20,7 +20,7 @@ pub struct App {
 }
 
 impl App {
-    pub fn new<Q, U, A, IV>(
+    pub fn new<Q, U, S, A, IV>(
         state: A,
         shell: fn(LeptosOptions) -> IV,
         routes: Vec<leptos_axum::AxumRouteListing>,
@@ -30,18 +30,19 @@ impl App {
         A: AppState,
         Q: Queue,
         U: UserData,
+        S: Sender<UserData = U> + FromRef<SenderAppState<S, A>>,
         IV: IntoView + 'static,
-        LeptosOptions: FromRef<A> + FromRef<SenderAppState<Q, U, A>>,
+        LeptosOptions: FromRef<A> + FromRef<SenderAppState<S, A>>,
     {
-        let (sender, receivers) = Sender::<Q, U>::new(pool);
+        let (sender, receivers) = S::new(pool);
         let state = SenderAppState::from_sender_and_options(sender, state);
         let axum_router = Router::new()
             .leptos_routes(&state, routes, {
                 let leptos_options = LeptosOptions::from_ref(&state);
                 move || shell(leptos_options.clone())
             })
-            .route("/ws", get(ws_handler::<Q, U>))
-            .fallback(file_and_error_handler::<SenderAppState<Q, U, A>, IV>(shell))
+            .route("/ws", get(ws_handler::<S>))
+            .fallback(file_and_error_handler::<SenderAppState<S, A>, IV>(shell))
             .with_state(state);
         let mut bevy_app = bevy::prelude::App::new();
         bevy_app
@@ -58,6 +59,9 @@ impl App {
             axum_router,
             bevy_app,
         }
+    }
+    pub fn insert_resource<R: bevy::prelude::Resource>(&mut self, resource: R) {
+        self.bevy_app.insert_resource(resource);
     }
     pub fn add_systems<S>(
         mut self,

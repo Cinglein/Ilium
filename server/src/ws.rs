@@ -1,5 +1,4 @@
 use crate::{
-    data::UserData,
     send::{SendFrame, Sender},
     time::Ping,
 };
@@ -13,10 +12,10 @@ use fastwebsockets::{
 use session::{msg::Msg, queue::Queue, token::ClientToken};
 use tokio::time::{sleep, Duration, Instant};
 
-async fn parse_message<Q: Queue, U: UserData>(
+async fn parse_message<Q: Queue, S: Sender<Queue = Q>>(
     msg: &[u8],
     ip: std::net::SocketAddr,
-    sender: &Sender<Q, U>,
+    sender: &S,
     send_frame: SendFrame,
     ping: Ping,
 ) -> Option<ClientToken> {
@@ -36,11 +35,11 @@ async fn parse_message<Q: Queue, U: UserData>(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn read<F: tokio::io::AsyncRead + Unpin, Q: Queue, U: UserData>(
+async fn read<F: tokio::io::AsyncRead + Unpin, S: Sender>(
     mut ws: FragmentCollectorRead<F>,
     token: &mut Option<ClientToken>,
     ip: std::net::SocketAddr,
-    sender: Sender<Q, U>,
+    sender: S,
     send_frame: &SendFrame,
     recv_ts: tokio::sync::watch::Receiver<Option<Instant>>,
     send_ping: tokio::sync::watch::Sender<Option<u128>>,
@@ -89,9 +88,9 @@ async fn write<S: tokio::io::AsyncWrite + Unpin>(
     Ok(())
 }
 
-async fn handle_client<Q: Queue, U: UserData>(
+async fn handle_client<S: Sender>(
     fut: upgrade::UpgradeFut,
-    sender: Sender<Q, U>,
+    sender: S,
     addr: std::net::SocketAddr,
 ) -> eyre::Result<()> {
     let (send_frame, receive_frame) = kanal::bounded::<Frame>(100);
@@ -132,19 +131,13 @@ async fn handle_client<Q: Queue, U: UserData>(
         recv_ping.clone(),
     )
     .await;
-    if let Some(token) = token {
-        let ping = Ping(recv_ping);
-        if let Err(err) = sender.send(Msg::leave(token), addr, send_frame, ping).await {
-            leptos::logging::log!("Error sending leave message: {err:?}");
-        }
-    }
     heartbeat.abort();
     handle.abort();
     res
 }
 
-pub async fn ws_handler<Q: Queue, U: UserData>(
-    State(sender): State<Sender<Q, U>>,
+pub async fn ws_handler<S: Sender>(
+    State(sender): State<S>,
     ConnectInfo(addr): ConnectInfo<std::net::SocketAddr>,
     ws: upgrade::IncomingUpgrade,
 ) -> impl IntoResponse {
