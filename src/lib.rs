@@ -6,3 +6,5 @@ pub use client;
 
 #[cfg(feature = "server")]
 pub use server;
+
+pub use ::kanal;

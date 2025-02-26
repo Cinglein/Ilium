@@ -16,6 +16,7 @@ macros = { path = "macros" }
 session = { path = "session" }
 server = { path = "server", optional = true }
 client = { path = "client", optional = true }
+kanal.workspace = true
 
 [workspace.dependencies]
 trait-variant = "0.1.2"

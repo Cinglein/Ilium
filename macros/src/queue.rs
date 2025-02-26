@@ -51,15 +51,15 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
                 let sender_name = format_ident!("{queue}Sender");
                 let receivers_name = format_ident!("{queue}Receivers");
                 quote! {
-                    pub struct #receivers_name {
-                        #(pub #queue_sender: ::ilium::server::send::Receiver<::ilium::server::send::QueueSignal<#component>>,)*
+                    pub struct #receivers_name<U: ::ilium::server::data::UserData> {
+                        #(pub #queue_sender: ::ilium::server::send::Receiver<::ilium::server::send::QueueSignal<#component, U>>,)*
                         #(pub #reconnect_sender: ::ilium::server::send::Receiver<::ilium::server::send::ReconnectSignal<#component>>,)*
                         #(pub #action_sender: ::ilium::server::send::Receiver<::ilium::server::send::ActionSignal<#component>>,)*
                     }
 
-                    impl ::ilium::server::send::Receivers for #receivers_name {
+                    impl<U: ::ilium::server::data::UserData> ::ilium::server::send::Receivers for #receivers_name<U> {
                         fn insert(self, app: &mut ::bevy::prelude::App) {
-                            let Receivers {
+                            let Self {
                                 #(#queue_sender,)*
                                 #(#reconnect_sender,)*
                                 #(#action_sender,)*
@@ -72,10 +72,10 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
 
                     #[derive(Debug, Resource)]
                     pub struct #sender_name<U: ::ilium::server::data::UserData> {
-                        pub pool: Pool<U::DB>,
-                        #(pub #queue_sender: ::kanal::Sender<::ilium::server::send::QueueSignal<#component>>,)*
-                        #(pub #reconnect_sender: ::kanal::Sender<::ilium::server::send::ReconnectSignal<#component>>,)*
-                        #(pub #action_sender: ::kanal::Sender<::ilium::server::send::ActionSignal<#component>>,)*
+                        pub pool: ::sqlx::Pool<U::DB>,
+                        #(pub #queue_sender: ::ilium::kanal::Sender<::ilium::server::send::QueueSignal<#component, U>>,)*
+                        #(pub #reconnect_sender: ::ilium::kanal::Sender<::ilium::server::send::ReconnectSignal<#component>>,)*
+                        #(pub #action_sender: ::ilium::kanal::Sender<::ilium::server::send::ActionSignal<#component>>,)*
                     }
 
                     impl<U: ::ilium::server::data::UserData> Clone for #sender_name<U> {
@@ -89,25 +89,26 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
                         }
                     }
 
-                    impl<App> ::axum::extract::FromRef<::ilium::server::state::SenderAppState<#sender_name, App>> for #sender_name
+                    impl<U, App> ::axum::extract::FromRef<::ilium::server::state::SenderAppState<#sender_name<U>, App>>
+                        for #sender_name<U>
                     where
-                        S: ::ilium::server::send::Sender,
+                        U: ::ilium::server::data::UserData,
                         App: ::ilium::server::state::AppState,
-                        LeptosOptions: ::axum::extract::FromRef<App>,
+                        ::leptos::prelude::LeptosOptions: ::axum::extract::FromRef<App>,
                     {
-                        fn from_ref(input: &::ilium::server::state::SenderAppState<S, App>) -> Self {
+                        fn from_ref(input: &::ilium::server::state::SenderAppState<#sender_name<U>, App>) -> Self {
                             input.sender.clone()
                         }
                     }
 
-                    impl<U: ilium::server::data::UserData> ::ilium::server::Sender for #sender_name<U> {
-                        type Receivers = #receivers_name;
+                    impl<U: ::ilium::server::data::UserData> ::ilium::server::send::Sender for #sender_name<U> {
+                        type Receivers = #receivers_name<Self::UserData>;
                         type Queue = #queue;
                         type UserData = U;
-                        fn new(pool: Pool<U::DB>) -> (Self, Self::Receivers) {
-                            #(let (#queue_sender, #queue_receiver) = ::kanal::unbounded();)*
-                            #(let (#reconnect_sender, #action_receiver) = ::kanal::unbounded();)*
-                            #(let (#action_sender, #action_receiver) = ::kanal::unbounded();)*
+                        fn new(pool: ::sqlx::Pool<U::DB>) -> (Self, Self::Receivers) {
+                            #(let (#queue_sender, #queue_receiver) = ::ilium::kanal::unbounded();)*
+                            #(let (#reconnect_sender, #reconnect_receiver) = ::ilium::kanal::unbounded();)*
+                            #(let (#action_sender, #action_receiver) = ::ilium::kanal::unbounded();)*
                             let sender = Self {
                                 pool,
                                 #(#queue_sender,)*
@@ -115,47 +116,52 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
                                 #(#action_sender,)*
                             };
                             let receivers = Self::Receivers {
-                                #(#queue_sender: ::ilium::server::send::Receiver(#queue_receiver))*
-                                #(#reconnect_sender: ::ilium::server::send::Receiver(#reconnect_receiver))*
-                                #(#action_sender: ::ilium::server::send::Receiver(#action_receiver))*
+                                #(#queue_sender: ::ilium::server::send::Receiver(#queue_receiver),)*
+                                #(#reconnect_sender: ::ilium::server::send::Receiver(#reconnect_receiver),)*
+                                #(#action_sender: ::ilium::server::send::Receiver(#action_receiver),)*
                             };
                             (sender, receivers)
                         }
-                         fn send(
+                        fn send(
                             &self,
                             msg: Msg<Self::Queue>,
                             ip: ::std::net::SocketAddr,
                             send_frame: ::ilium::server::send::SendFrame,
                             ping: ::ilium::server::time::Ping,
                         ) -> impl ::core::future::Future<Output = ::eyre::Result<()>> + Send + Sync {
-                            let ::ilium::session::msg::Msg { token, queue, msg_type } = msg;
-                            let account = ::ilium::server::auth::auth(token, ip);
-                            match (msg_type, queue) {
-                                #(
-                                    (MsgType::Join, #queue::#variant_name) => {
-                                        let user_data = U::query(&self.pool, &account).await?;
-                                        self.#queue_sender.send(::ilium::server::send::QueueSignal::Join {
-                                            account,
-                                            send_frame,
-                                            user_data,
-                                            ping,
-                                        })
-                                    }
-                                    (MsgType::Reconnect, #queue::#variant_name) =>
-                                        self.#reconnect_sender.send(::ilium::server::send::ReconnectSignal {
-                                            account,
-                                            ping,
-                                            send_frame,
-                                        }),
-                                    (MsgType::Accept, #queue::#variant_name)=>
-                                        self.queue.send(::ilium::server::send::QueueSignal::Accept { account }),
-                                    (MsgType::Leave, #queue::#variant_name) =>
-                                        self.queue.send(::ilium::server::send::QueueSignal::Leave { account }),
-                                    (MsgType::Action(action), #queue::#variant_name) =>
-                                        self.action.send(::ilium::server::send::ActionSignal { account, action }),
-                                )*
-                            }?;
-                            Ok(())
+                            async move {
+                                let ::ilium::session::msg::Msg { token, queue, msg_type } = msg;
+                                let account = ::ilium::server::auth::auth(token, ip);
+                                let _phantom = std::marker::PhantomData;
+                                match (msg_type, queue) {
+                                    #(
+                                        (MsgType::Join, #queue::#variant_name) => {
+                                            let user_data = Self::UserData::query(&self.pool, &account).await?;
+                                            self.#queue_sender.send(::ilium::server::send::QueueSignal::Join {
+                                                account,
+                                                send_frame,
+                                                user_data,
+                                                ping,
+                                                _phantom,
+                                            })
+                                        }
+                                        (MsgType::Reconnect, #queue::#variant_name) =>
+                                            self.#reconnect_sender.send(::ilium::server::send::ReconnectSignal {
+                                                account,
+                                                ping,
+                                                send_frame,
+                                                _phantom,
+                                            }),
+                                        (MsgType::Accept, #queue::#variant_name)=>
+                                            self.#queue_sender.send(::ilium::server::send::QueueSignal::Accept { account, _phantom }),
+                                        (MsgType::Leave, #queue::#variant_name) =>
+                                            self.#queue_sender.send(::ilium::server::send::QueueSignal::Leave { account, _phantom }),
+                                        (MsgType::Action(action), #queue::#variant_name) =>
+                                            self.#action_sender.send(::ilium::server::send::ActionSignal { account, action }),
+                                    )*
+                                }?;
+                                Ok(())
+                            }
                         }
                     }
                 }
@@ -170,14 +176,18 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
     let register = {
         cfg_if::cfg_if! {
             if #[cfg(feature = "server")] {
-                let user_data: Type = name_value(&ast.attrs, "user_data")
-                    .unwrap_or_else(|| abort_call_site!("Could not find user_data attribute"));
                 quote! {
-                    #(
-                        app.register(::ilium::server::matchmaking::process_queue::<#component, #user_data>);
-                        app.register(::ilium::server::matchmaking::reconnect::<#component>);
-                        app.register(::ilium::server::matchmaking::matchmake::<#component, #user_data>);
-                    )*
+                    impl ::ilium::server::app::Register for #queue {
+                        fn register<U: ::ilium::server::data::UserData>(app: &mut ::bevy::prelude::App) {
+                            #(
+                                app.add_systems(::bevy::prelude::Update, ::ilium::server::matchmaking::process_queue::<#component, U>);
+                                app.add_systems(::bevy::prelude::Update, ::ilium::server::matchmaking::reconnect::<#component>);
+                                app.add_systems(::bevy::prelude::Update, ::ilium::server::matchmaking::matchmake::<#component, U>);
+                                app.add_systems(::bevy::prelude::Update, ::ilium::server::update::update_client::<#component>);
+                                app.add_systems(::bevy::prelude::Update, ::ilium::server::update::process_actions::<#component>);
+                            )*
+                        }
+                    }
                 }
             } else if #[cfg(feature = "client")] {
                 quote! { () }
@@ -189,12 +199,10 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
 
     quote! {
         #sender
+        #register
 
         impl ::ilium::session::Queue for #queue {
             type Action = #action;
-            fn register<A: ::ilium::session::IliumApp>(app: &mut A) {
-                #register
-            }
             fn insert(&self, ec: &mut ::bevy::ecs::system::EntityCommands) {
                 match self {
                     #(Self::#variant_name => ec.insert(#component),)*
@@ -203,10 +211,10 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
         }
 
         #(
-            #[derive(::bevy::prelude::Component)]
+            #[derive(Clone, Default, ::bevy::prelude::Component)]
             pub struct #component;
 
-            #[derive(::bevy::prelude::Component)]
+            #[derive(Clone, ::bevy::prelude::Component)]
             pub struct #lobby_name(#lobby_type);
 
             impl<'a> std::convert::TryFrom<&'a [::bevy::prelude::Entity]> for #lobby_name {
@@ -226,20 +234,18 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
 
             impl ::ilium::session::QueueComponent for #component {
                 type Queue = #queue;
-                type Info = ::ilium::session::Info<
-                    <Self::Action as ::ilium::session::Action>::User,
-                    <Self::Action as ::ilium::session::Action>::Shared,
-                >;
                 type Lobby = #lobby_name;
                 type Action = #action;
-                fn info(
-                    index: usize,
-                    users: &[<Self::Action as ::ilium::session::Action>::User],
-                    shared: &<Self::Action as ::ilium::session::Action>::Shared,
-                ) -> Self::Info {
+                fn info<S: ::ilium::session::AsState<
+                    Shared = <#action as ::ilium::session::Action>::Shared, 
+                    User = <#action as ::ilium::session::Action>::User,
+                >>(
+                    index: S::Index,
+                    state: &S,
+                ) -> ::ilium::session::Info<S::User, S::Shared, S::Index> {
                     ::ilium::session::Info {
-                        users: <Self::Action as ::ilium::session::Action>::User::info(index, users, shared),
-                        shared: <Self::Action as ::ilium::session::Action>::Shared::info(index, users, shared),
+                        users: <Self::Action as ::ilium::session::Action>::User::info(index, state),
+                        shared: <Self::Action as ::ilium::session::Action>::Shared::info(index, state),
                     }
                 }
             }

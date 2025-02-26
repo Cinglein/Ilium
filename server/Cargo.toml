@@ -14,7 +14,8 @@ leptos.workspace = true
 leptos_axum.workspace = true
 leptos_router.workspace = true
 eyre.workspace = true
-rkyv.workspace = true
+postcard.workspace = true
+serde.workspace = true
 
 sqlx = { version = "0.8.3", features = [
   "runtime-tokio-rustls",

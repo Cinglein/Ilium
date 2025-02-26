@@ -1,5 +1,6 @@
 use crate::account::Account;
 use bevy::prelude::*;
+use core::future::Future;
 use sqlx::*;
 
 /// Data associated with a user account.
@@ -9,7 +10,10 @@ pub trait UserData:
 {
     type O: Ord;
     type DB: Database;
-    async fn query(pool: &Pool<Self::DB>, account: &Account) -> eyre::Result<Self>;
+    fn query(
+        pool: &Pool<Self::DB>,
+        account: &Account,
+    ) -> impl Future<Output = eyre::Result<Self>> + Send + Sync;
     fn matchmake_priority(&self) -> Self::O;
     fn matchmake_valid(&self, user_data: &Self) -> bool;
 }

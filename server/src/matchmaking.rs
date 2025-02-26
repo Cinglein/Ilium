@@ -3,6 +3,7 @@ use crate::{
     data::UserData,
     queries::*,
     send::{QueueSignal, Receiver, ReconnectSignal},
+    update::ActionStateInfo,
 };
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use session::{action::Action, info::StateInfo, queue::*};
@@ -12,7 +13,7 @@ pub struct Accepted;
 
 pub fn process_queue<QC: QueueComponent, U: UserData>(
     mut commands: Commands,
-    receiver: ResMut<Receiver<QueueSignal<U>>>,
+    receiver: ResMut<Receiver<QueueSignal<QC, U>>>,
     accounts: ResMut<AccountMap>,
     in_queue: InQueue<QC, U>,
     in_lobby: InLobby<QC>,
@@ -26,23 +27,24 @@ pub fn process_queue<QC: QueueComponent, U: UserData>(
                 ping,
                 user_data,
                 account,
+                ..
             } => {
                 if !accounts.contains_key(&account) {
-                    send_frame.send(&StateInfo::Queue::<QC::Info>);
+                    send_frame.send(&StateInfo::Queue::<ActionStateInfo<QC>>);
                     let mut ec = commands.spawn((account, ping, user_data, send_frame));
                     ec.insert(QC::default());
                     let entity = ec.id();
                     accounts.insert(account, entity);
                 }
             }
-            QueueSignal::Accept { account } => {
+            QueueSignal::Accept { account, .. } => {
                 if let Some(player) = accounts.get(&account).and_then(|e| in_lobby.get(*e).ok()) {
                     if let Some(mut ec) = commands.get_entity(player.entity) {
                         ec.insert(Accepted);
                     }
                 }
             }
-            QueueSignal::Leave { account } => {
+            QueueSignal::Leave { account, .. } => {
                 if let Some(entity) = accounts.get(&account) {
                     if in_queue.contains(*entity) || in_lobby.contains(*entity) {
                         if let Some(mut ec) = commands.get_entity(*entity) {
@@ -57,7 +59,7 @@ pub fn process_queue<QC: QueueComponent, U: UserData>(
 }
 
 pub fn reconnect<QC: QueueComponent>(
-    receiver: ResMut<Receiver<ReconnectSignal>>,
+    receiver: ResMut<Receiver<ReconnectSignal<QC>>>,
     accounts: ResMut<AccountMap>,
     mut in_session: InSession<QC>,
 ) {
@@ -67,6 +69,7 @@ pub fn reconnect<QC: QueueComponent>(
         send_frame,
         ping,
         account,
+        ..
     })) = receiver.try_recv()
     {
         if let Some(entity) = accounts.get(&account).copied() {
@@ -104,7 +107,8 @@ pub fn matchmake<QC: QueueComponent, U: UserData>(
                     let shared_state = <QC::Action as Action>::Shared::default();
                     let session_id = EntityId(commands.spawn(shared_state).id());
                     commands.entity(entity).insert(session_id);
-                    user.send_frame.send(&StateInfo::<QC::Info>::Lobby);
+                    user.send_frame
+                        .send(&StateInfo::<ActionStateInfo<QC>>::Lobby);
                 }
             }
         }

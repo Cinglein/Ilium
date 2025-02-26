@@ -8,5 +8,6 @@ server = []
 
 [dependencies]
 bevy.workspace = true
-rkyv.workspace = true
-bytecheck.workspace = true
+eyre.workspace = true
+serde.workspace = true
+postcard.workspace = true

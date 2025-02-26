@@ -11,8 +11,15 @@ use axum::{extract::FromRef, routing::get, Router};
 use bevy::prelude::{PluginGroup, Update};
 use leptos::{logging, prelude::*, IntoView};
 use leptos_axum::{file_and_error_handler, LeptosRoutes};
-use session::queue::{Queue, QueueComponent};
+use session::{
+    queue::{Queue, QueueComponent},
+    time::AsStopwatch,
+};
 use sqlx::*;
+
+pub trait Register {
+    fn register<U: UserData>(app: &mut bevy::prelude::App);
+}
 
 pub struct App {
     axum_router: Router,
@@ -28,7 +35,7 @@ impl App {
     ) -> Self
     where
         A: AppState,
-        Q: Queue,
+        Q: Queue + Register,
         U: UserData,
         S: Sender<UserData = U> + FromRef<SenderAppState<S, A>>,
         IV: IntoView + 'static,
@@ -51,14 +58,16 @@ impl App {
                     1.0 / 60.0,
                 )),
             ))
-            .add_systems(Update, tick)
             .insert_resource(AccountMap::default());
-        Q::register(&mut bevy_app);
+        Q::register::<U>(&mut bevy_app);
         receivers.insert(&mut bevy_app);
         Self {
             axum_router,
             bevy_app,
         }
+    }
+    pub fn add_time<T: AsStopwatch>(&mut self) {
+        self.bevy_app.add_systems(Update, tick::<T>);
     }
     pub fn insert_resource<R: bevy::prelude::Resource>(&mut self, resource: R) {
         self.bevy_app.insert_resource(resource);

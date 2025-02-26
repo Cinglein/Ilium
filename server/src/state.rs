@@ -17,7 +17,7 @@ where
     App: AppState,
     LeptosOptions: FromRef<App>,
 {
-    sender: S,
+    pub sender: S,
     pub user_defined: App,
 }
 

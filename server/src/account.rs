@@ -1,10 +1,16 @@
 use bevy::prelude::*;
-use rkyv::{Archive, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Resource)]
 pub struct AccountMap(pub bevy::utils::hashbrown::HashMap<Account, bevy::prelude::Entity>);
 
-#[derive(Eq, PartialEq, Hash, Clone, Copy, Debug, Archive, Serialize, Deserialize, Component)]
+impl AccountMap {
+    pub fn get(&self, account: &Account) -> Option<bevy::prelude::Entity> {
+        self.0.get(account).copied()
+    }
+}
+
+#[derive(Eq, PartialEq, Hash, Clone, Copy, Debug, Serialize, Deserialize, Component)]
 pub enum Account {
     Guest { ip: std::net::SocketAddr },
 }
