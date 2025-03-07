@@ -6,7 +6,7 @@ use crate::{
     update::ActionStateInfo,
 };
 use bevy::{prelude::*, utils::hashbrown::HashSet};
-use session::{action::Action, info::StateInfo, queue::*};
+use session::{action::Action, info::StateInfo, queue::*, state::UserState};
 
 #[derive(Component)]
 pub struct Accepted;
@@ -81,7 +81,7 @@ pub fn reconnect<QC: QueueComponent>(
     }
 }
 
-/// Given a queue, matchmake users and initiate a new session
+/// Given a queue, matchmake users into a lobby
 pub fn matchmake<QC: QueueComponent, U: UserData>(
     mut commands: Commands,
     in_queue: InQueue<QC, U>,
@@ -102,15 +102,41 @@ pub fn matchmake<QC: QueueComponent, U: UserData>(
             valid.into_iter().for_each(|e| {
                 taken.insert(e);
             });
+            let shared_state = <QC::Action as Action>::Shared::default();
+            let session_id = EntityId(commands.spawn((shared_state, lobby.clone())).id());
             for entity in lobby.entities() {
                 if let Ok(user) = in_queue.get(entity) {
-                    let shared_state = <QC::Action as Action>::Shared::default();
-                    let session_id = EntityId(commands.spawn(shared_state).id());
                     commands.entity(entity).insert(session_id);
                     user.send_frame
                         .send(&StateInfo::<ActionStateInfo<QC>>::Lobby);
                 }
             }
+        }
+    }
+}
+
+///Initialize a new session from accepted lobbies
+pub fn init_session<QC: QueueComponent>(
+    mut commands: Commands,
+    accepted: InLobbyAccepted<QC>,
+    sessions: SessionsPending<QC>,
+) where
+    QC::Action: Action<Shared = <<QC::Action as Action>::User as UserState>::Shared>,
+{
+    for session in sessions.iter() {
+        if session
+            .lobby
+            .entities()
+            .fold(true, |b, e| b && accepted.contains(e))
+        {
+            session.lobby.entities().for_each(|e| {
+                commands
+                    .entity(e)
+                    .insert(<<QC::Action as Action>::User as UserState>::init(
+                        session.state,
+                    ));
+            });
+            commands.entity(session.entity).insert(Accepted);
         }
     }
 }

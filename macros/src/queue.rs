@@ -183,6 +183,7 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
                                 app.add_systems(::bevy::prelude::Update, ::ilium::server::matchmaking::process_queue::<#component, U>);
                                 app.add_systems(::bevy::prelude::Update, ::ilium::server::matchmaking::reconnect::<#component>);
                                 app.add_systems(::bevy::prelude::Update, ::ilium::server::matchmaking::matchmake::<#component, U>);
+                                app.add_systems(::bevy::prelude::Update, ::ilium::server::matchmaking::init_session::<#component>);
                                 app.add_systems(::bevy::prelude::Update, ::ilium::server::update::update_client::<#component>);
                                 app.add_systems(::bevy::prelude::Update, ::ilium::server::update::process_actions::<#component>);
                             )*

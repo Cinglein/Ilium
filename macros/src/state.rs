@@ -19,6 +19,7 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
     } else {
         name_value(&ast.attrs, "shared").unwrap_or_else(|| abort_call_site!("Could not find state attribute")) 
     };
+    let init = name_value::<Path>(&ast.attrs, "init").map(|path| quote!(#path(shared))).unwrap_or(quote!(Default::default()));
     let timer: Option<Ident> = name_value(&ast.attrs, "timer");
     let stopwatch: Option<Ident> = name_value(&ast.attrs, "stopwatch");
     let mut open_name: Vec<Ident> = Vec::new();
@@ -227,6 +228,9 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
                         (i, info)
                     })
                     .collect()
+                }
+                fn init(shared: &Self::Shared) -> Self {
+                    #init
                 }
             }
         }

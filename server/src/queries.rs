@@ -22,7 +22,8 @@ pub type InLobbyAccepted<'a, 'b, QC> = Query<
     ),
 >;
 pub type InSession<'a, 'b, QC> = Query<'a, 'b, UserQuery<QC>>;
-pub type Sessions<'a, 'b, QC> = Query<'a, 'b, SessionQuery<QC>>;
+pub type SessionsPending<'a, 'b, QC> = Query<'a, 'b, SessionQuery<QC>, Without<Accepted>>;
+pub type Sessions<'a, 'b, QC> = Query<'a, 'b, SessionQuery<QC>, With<Accepted>>;
 
 #[derive(Clone, Copy, Debug, Component)]
 pub struct EntityId(pub Entity);

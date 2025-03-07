@@ -2,10 +2,11 @@ use crate::msg::Message;
 use bevy::{prelude::Component, utils::hashbrown::HashMap};
 use std::{borrow::Borrow, fmt::Debug, hash::Hash};
 
-pub trait UserState: Component + Default + Clone + Debug {
+pub trait UserState: Component + Clone + Debug {
     type Info: Message;
     type Shared: SharedState;
     fn info<S: AsState<User = Self>>(index: S::Index, state: &S) -> HashMap<S::Index, Self::Info>;
+    fn init(shared: &Self::Shared) -> Self;
 }
 
 pub trait SharedState: Component + Default + Clone + Debug {
