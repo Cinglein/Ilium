@@ -227,6 +227,9 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
             }
 
             impl ::ilium::session::Lobby for #lobby_name {
+                fn len(&self) -> usize {
+                    self.0.len()
+                }
                 fn entities(&self) -> impl Iterator<Item = ::bevy::prelude::Entity> {
                     let Self(list) = self;
                     list.iter().copied()

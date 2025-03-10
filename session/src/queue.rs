@@ -2,6 +2,7 @@ use crate::{action::Action, info::Info, msg::Message, state::AsState};
 use bevy::prelude::*;
 
 pub trait Lobby: Clone + Component + for<'a> TryFrom<&'a [Entity]> {
+    fn len(&self) -> usize;
     fn entities(&self) -> impl Iterator<Item = Entity>;
 }
 

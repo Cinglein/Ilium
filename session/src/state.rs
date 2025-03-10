@@ -6,13 +6,14 @@ pub trait UserState: Component + Clone + Debug {
     type Info: Message;
     type Shared: SharedState;
     fn info<S: AsState<User = Self>>(index: S::Index, state: &S) -> HashMap<S::Index, Self::Info>;
-    fn init(shared: &Self::Shared) -> Self;
+    fn init(shared: &mut Self::Shared, users: usize) -> Vec<Self>;
 }
 
-pub trait SharedState: Component + Default + Clone + Debug {
+pub trait SharedState: Component + Clone + Debug {
     type Info: Message;
     type User: UserState;
     fn info<S: AsState<Shared = Self>>(index: S::Index, state: &S) -> Self::Info;
+    fn init(seed: [u8; 32]) -> Self;
 }
 
 pub trait AsState {

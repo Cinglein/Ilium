@@ -6,7 +6,8 @@ use crate::{
     update::ActionStateInfo,
 };
 use bevy::{prelude::*, utils::hashbrown::HashSet};
-use session::{action::Action, info::StateInfo, queue::*, state::UserState};
+use rand::{rngs::OsRng, TryRngCore};
+use session::{action::Action, info::StateInfo, queue::*, state::*};
 
 #[derive(Component)]
 pub struct Accepted;
@@ -102,7 +103,9 @@ pub fn matchmake<QC: QueueComponent, U: UserData>(
             valid.into_iter().for_each(|e| {
                 taken.insert(e);
             });
-            let shared_state = <QC::Action as Action>::Shared::default();
+            let mut seed = [0u8; 32];
+            OsRng.try_fill_bytes(&mut seed).expect("OSRng Error");
+            let shared_state = <<QC::Action as Action>::Shared as SharedState>::init(seed);
             let session_id = EntityId(commands.spawn((shared_state, lobby.clone())).id());
             for entity in lobby.entities() {
                 if let Ok(user) = in_queue.get(entity) {
@@ -119,23 +122,27 @@ pub fn matchmake<QC: QueueComponent, U: UserData>(
 pub fn init_session<QC: QueueComponent>(
     mut commands: Commands,
     accepted: InLobbyAccepted<QC>,
-    sessions: SessionsPending<QC>,
+    mut sessions: SessionsPending<QC>,
 ) where
     QC::Action: Action<Shared = <<QC::Action as Action>::User as UserState>::Shared>,
 {
-    for session in sessions.iter() {
+    for mut session in sessions.iter_mut() {
         if session
             .lobby
             .entities()
             .fold(true, |b, e| b && accepted.contains(e))
         {
-            session.lobby.entities().for_each(|e| {
-                commands
-                    .entity(e)
-                    .insert(<<QC::Action as Action>::User as UserState>::init(
-                        session.state,
-                    ));
-            });
+            let user_states = <<QC::Action as Action>::User as UserState>::init(
+                session.state.as_mut(),
+                session.lobby.len(),
+            );
+            session
+                .lobby
+                .entities()
+                .zip(user_states.into_iter())
+                .for_each(|(e, state)| {
+                    commands.entity(e).insert(state);
+                });
             commands.entity(session.entity).insert(Accepted);
         }
     }

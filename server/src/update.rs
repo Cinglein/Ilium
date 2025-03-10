@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use session::{action::Action, info::Info, queue::*, state::*};
 use std::borrow::Borrow;
 
-pub type ActionStateInfo<'a, QC: QueueComponent> = Info<
+pub type ActionStateInfo<'a, QC> = Info<
     <ActionState<'a, QC> as AsState>::User,
     <ActionState<'a, QC> as AsState>::Shared,
     <ActionState<'a, QC> as AsState>::Index,
