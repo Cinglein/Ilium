@@ -40,59 +40,16 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
             for field in named.iter() {
                 let name = field.ident.clone().unwrap();
                 let ty = field.ty.clone();
-                let info = field
-                    .attrs
-                    .iter()
-                    .find_map(|attr| match &attr.meta {
-                        Meta::List(MetaList { path, tokens, .. })
-                            if path
-                                .get_ident()
-                                .is_some_and(|ident| &ident.to_string() == "ilium") =>
-                        {
-                            match parse2(tokens.clone()).expect("Could not parse info attribute") {
-                                Meta::Path(path)
-                                    if path
-                                        .get_ident()
-                                        .is_some_and(|id| &id.to_string() == "open") =>
-                                {
-                                    let ty = ty.clone();
-                                    let name = name.clone();
-                                    Some(IliumFieldInfo::Open { ty, name })
-                                }
-                                Meta::NameValue(MetaNameValue {
-                                    path,
-                                    value:
-                                        Expr::Lit(ExprLit {
-                                            lit: Lit::Str(name),
-                                            ..
-                                        }),
-                                    ..
-                                }) if path
-                                    .get_ident()
-                                    .is_some_and(|ident| &ident.to_string() == "hidden") =>
-                                {
-                                    hidden_fn
-                                        .push(name.parse().expect("Could not parse hidden fn"));
-                                    let ty = ty.clone();
-                                    let name = parse_quote!("::ilium::session::Hidden<#ty>");
-                                    Some(IliumFieldInfo::Hidden { ty, name })
-                                }
-                                Meta::Path(path)
-                                    if path
-                                        .get_ident()
-                                        .is_some_and(|id| &id.to_string() == "private") =>
-                                {
-                                    let ty = ty.clone();
-                                    let ty = ty.clone();
-                                    let name = name.clone();
-                                    Some(IliumFieldInfo::Private { ty, name })
-                                }
-                                _ => None,
-                            }
-                        }
-                        _ => None,
-                    })
-                    .unwrap_or(IliumFieldInfo::Private { ty, name });
+                let info = if name_value::<LitBool>(&field.attrs, "open").map_or(false, |b| b.value) {
+                    println!("name: {name:?}");
+                    IliumFieldInfo::Open { ty, name }
+                } else if let Some(hidden) = name_value::<HiddenFn>(&field.attrs, "hidden") {
+                    hidden_fn.push(hidden.ident);
+                    IliumFieldInfo::Hidden { ty: hidden.output, name }
+                } else {
+                    IliumFieldInfo::Private { ty, name }
+                };
+
                 match info {
                     IliumFieldInfo::Open { name, ty } => {
                         open_name.push(name);
@@ -192,13 +149,10 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
                 type User = #other; 
                 fn info<S: ::ilium::session::AsState<Shared = #state>>(index: S::Index, state: &S) -> Self::Info {
                     let shared = state.shared();
+                    let shared: &#state = ::std::borrow::Borrow::borrow(&shared);
                     #info_name {
-                        #(#open_name: shared.#open_name,)*
-                        #(#hidden_name: if #hidden_fn(index, state) {
-                            ::ilium::session::Hidden::Seen(shared.#hidden_name)
-                        } else {
-                            ::ilium::session::Hidden::Unseen
-                        },)*
+                        #(#open_name: shared.#open_name.clone(),)*
+                        #(#hidden_name: #hidden_fn(index, state),)*
                         #(#private_name: None,)*
                     }
                 }
@@ -223,11 +177,7 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
                         let user: &#state = ::std::borrow::Borrow::borrow(&user);
                         let info = #info_name {
                             #(#open_name: user.#open_name.clone(),)*
-                            #(#hidden_name: if #hidden_fn(i, state) { 
-                                ::ilium::session::Hidden::Seen(user.#hidden_name.clone())
-                            } else {
-                                ::ilium::session::Hidden::Unseen
-                            },)*
+                            #(#hidden_name: #hidden_fn(i, state),)*
                             #(#private_name: if index == i { Some(user.#private_name.clone()) } else { None },)*
                         };
                         (i, info)

@@ -16,21 +16,3 @@ pub struct Info<U: UserState, S: SharedState, I: Sized + Eq + PartialEq + Hash> 
     pub users: bevy::utils::hashbrown::HashMap<I, U::Info>,
     pub shared: S::Info,
 }
-
-/// A wrapper for data that is only sometimes visible.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(bound = "T: Serialize + DeserializeOwned")]
-pub enum Hidden<T: Message> {
-    Unseen,
-    Seen(T),
-    LastSeen(T),
-}
-
-impl<T: Message> Hidden<T> {
-    pub fn update(self, rhs: Self) -> Self {
-        match (&self, &rhs) {
-            (Self::LastSeen(_), Self::Unseen) => self,
-            _ => rhs,
-        }
-    }
-}
