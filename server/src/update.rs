@@ -1,6 +1,6 @@
 use crate::{account::AccountMap, queries::*, send::*};
 use bevy::prelude::*;
-use session::{action::Action, info::Info, queue::*, state::*};
+use session::{action::Action, info::Info, queue::*, state::*, time::AsStopwatch};
 use std::borrow::Borrow;
 
 pub type ActionStateInfo<'a, QC> = Info<
@@ -134,6 +134,7 @@ pub fn update_client<QC: QueueComponent>(sessions: Sessions<QC>, users: InSessio
 }
 
 pub fn process_actions<QC: QueueComponent>(
+    time: Res<Time>,
     accounts: Res<AccountMap>,
     actions: ResMut<Receiver<ActionSignal<QC>>>,
     mut sessions: Sessions<QC>,
@@ -150,5 +151,8 @@ pub fn process_actions<QC: QueueComponent>(
     let s: Vec<_> = sessions.iter().map(|s| s.entity).collect();
     for session in s.into_iter() {
         ActionState::update(session, &mut sessions.reborrow(), &mut users.reborrow());
+    }
+    for mut session in sessions.iter_mut() {
+        session.state.tick(time.delta());
     }
 }

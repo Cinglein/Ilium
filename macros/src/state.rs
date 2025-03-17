@@ -22,8 +22,7 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
     let init = name_value::<Path>(&ast.attrs, "init")
         .map(|path| if is_shared { quote!(#path(seed)) } else { quote!(#path(shared, users)) })
         .unwrap_or(if is_shared { quote!(Default::default()) } else { quote!(vec![Default::default(); users]) });
-    let timer: Option<Ident> = name_value(&ast.attrs, "timer");
-    let stopwatch: Option<Ident> = name_value(&ast.attrs, "stopwatch");
+    let timers: Vec<Ident> = name_value::<CommaSeparated<Ident>>(&ast.attrs, "timers").map(|t| t.0).unwrap_or_default();
     let mut open_name: Vec<Ident> = Vec::new();
     let mut open_type: Vec<Type> = Vec::new();
     let mut hidden_name: Vec<Ident> = Vec::new();
@@ -40,8 +39,7 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
             for field in named.iter() {
                 let name = field.ident.clone().unwrap();
                 let ty = field.ty.clone();
-                let info = if name_value::<LitBool>(&field.attrs, "open").map_or(false, |b| b.value) {
-                    println!("name: {name:?}");
+                let info = if name_value::<LitBool>(&field.attrs, "open").is_some_and(|b| b.value) {
                     IliumFieldInfo::Open { ty, name }
                 } else if let Some(hidden) = name_value::<HiddenFn>(&field.attrs, "hidden") {
                     hidden_fn.push(hidden.ident);
@@ -68,81 +66,45 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
         }
         _ => abort_call_site!("Only structs are supported."),
     };
-    let info = quote! {
-        #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize)]
-        pub struct #info_name {
-            #(#open_name: #open_type,)*
-            #(#hidden_name: #hidden_type,)*
-            #(#private_name: Option<#private_type>,)*
+    let info = if is_shared {
+        quote! {
+            #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize)]
+            pub struct #info_name {
+                #(#open_name: #open_type,)*
+                #(#hidden_name: #hidden_type,)*
+            }
+        }
+    } else {
+        quote! {
+            #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize)]
+            pub struct #info_name {
+                #(#open_name: #open_type,)*
+                #(#hidden_name: #hidden_type,)*
+                #(#private_name: Option<#private_type>,)*
+            }
         }
     };
-    let timer = if let Some(timer) = timer {
-        quote! {
-            impl ::ilium::session::AsStopwatch for #state {
-                fn elapsed_secs(&self) -> f32 {
-                    self.#timer.elapsed_secs()
-                }
-                fn pause(&mut self) {
-                    self.#timer.pause();
-                }
-                fn unpause(&mut self) {
-                    self.#timer.unpause();
-                }
-                fn is_paused(&self) -> bool {
-                    self.#timer.is_paused()
-                }
-                fn reset(&mut self) {
-                    self.#timer.reset();
-                }
-                fn tick(&mut self, delta: Duration) {
-                    self.#timer.tick(delta);
-                }
+    let timer = quote! {
+        impl ::ilium::session::AsStopwatch for #state {
+            fn pause(&mut self) {
+                #(self.#timers.pause();)*
             }
-
-            impl ::ilium::session::AsTimer for #state {
-                fn remaining_secs(&self) -> f32 {
-                    self.#timer.remaining_secs()
-                }
-                fn finished(&self) -> bool {
-                    self.#timer.finished()
-                }
+            fn unpause(&mut self) {
+                #(self.#timers.unpause();)*
             }
-        } 
-    } else {
-        quote! {}
-    };
-    let stopwatch = if let Some(stopwatch) = stopwatch {
-        quote! {
-            impl ::ilium::session::AsStopwatch for #state {
-                fn elapsed_secs(&self) -> f32 {
-                    self.#stopwatch.elapsed_secs()
-                }
-                fn pause(&mut self) {
-                    self.#stopwatch.pause();
-                }
-                fn unpause(&mut self) {
-                    self.#stopwatch.unpause();
-                }
-                fn is_paused(&self) -> bool {
-                    self.#stopwatch.is_paused()
-                }
-                fn reset(&mut self) {
-                    self.#stopwatch.reset();
-                }
-                fn tick(&mut self, delta: Duration) {
-                    self.#stopwatch.tick(delta);
-                }
+            fn reset(&mut self) {
+                #(self.#timers.reset();)*
             }
-        } 
-    } else {
-        quote! {}
-    };
+            fn tick(&mut self, delta: ::std::time::Duration) {
+                #(self.#timers.tick(delta);)*
+            }
+        }
+    }; 
 
     if is_shared {
         quote! {
             #info
             #timer
-            #stopwatch
             
             impl ::ilium::session::SharedState for #state {
                 type Info = #info_name;
@@ -153,7 +115,6 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
                     #info_name {
                         #(#open_name: shared.#open_name.clone(),)*
                         #(#hidden_name: #hidden_fn(index, state),)*
-                        #(#private_name: None,)*
                     }
                 }
                 fn init(seed: [u8; 32]) -> Self {
@@ -166,7 +127,6 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
         quote! {
             #info
             #timer
-            #stopwatch
 
             impl ::ilium::session::UserState for #state {
                 type Info = #info_name;

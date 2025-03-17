@@ -18,6 +18,24 @@ impl Parse for HiddenFn {
     }
 }
 
+pub struct CommaSeparated<T: Parse>(pub Vec<T>);
+
+impl<T: Parse> Parse for CommaSeparated<T> {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let punctuated = Punctuated::<T, Token![,]>::parse_terminated(input)?;
+        let list = punctuated.into_iter().collect();
+        Ok(Self(list))
+    }
+}
+
+impl<T: Parse> IntoIterator for CommaSeparated<T> {
+    type Item = T;
+    type IntoIter = ::std::vec::IntoIter<T>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 #[derive(Debug)]
 enum AttrInner {
     Path(Path),

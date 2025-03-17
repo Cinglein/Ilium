@@ -4,6 +4,9 @@ use bevy::prelude::*;
 pub trait Lobby: Clone + Component + for<'a> TryFrom<&'a [Entity]> {
     fn len(&self) -> usize;
     fn entities(&self) -> impl Iterator<Item = Entity>;
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 pub trait Queue: Message {

@@ -1,15 +1,15 @@
-use crate::msg::Message;
+use crate::{msg::Message, time::AsStopwatch};
 use bevy::{prelude::Component, utils::hashbrown::HashMap};
 use std::{borrow::Borrow, fmt::Debug, hash::Hash};
 
-pub trait UserState: Component + Clone + Debug {
+pub trait UserState: Component + Clone + Debug + AsStopwatch {
     type Info: Message;
     type Shared: SharedState;
     fn info<S: AsState<User = Self>>(index: S::Index, state: &S) -> HashMap<S::Index, Self::Info>;
     fn init(shared: &mut Self::Shared, users: usize) -> Vec<Self>;
 }
 
-pub trait SharedState: Component + Clone + Debug {
+pub trait SharedState: Component + Clone + Debug + AsStopwatch {
     type Info: Message;
     type User: UserState;
     fn info<S: AsState<Shared = Self>>(index: S::Index, state: &S) -> Self::Info;
