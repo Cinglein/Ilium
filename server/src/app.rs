@@ -7,7 +7,7 @@ use crate::{
     time::tick,
     ws::ws_handler,
 };
-use axum::{extract::FromRef, routing::get, Router};
+use axum::{extract::FromRef, routing::any, Router};
 use bevy::prelude::{PluginGroup, Update};
 use leptos::{logging, prelude::*, IntoView};
 use leptos_axum::{file_and_error_handler, LeptosRoutes};
@@ -48,7 +48,7 @@ impl App {
                 let leptos_options = LeptosOptions::from_ref(&state);
                 move || shell(leptos_options.clone())
             })
-            .route("/ws", get(ws_handler::<S>))
+            .route("/ws", any(ws_handler::<S>))
             .fallback(file_and_error_handler::<SenderAppState<S, A>, IV>(shell))
             .with_state(state);
         let mut bevy_app = bevy::prelude::App::new();
@@ -101,9 +101,9 @@ impl App {
             mut bevy_app,
             ..
         } = self;
-        let router: Router = axum_router;
 
         tokio::spawn(async move {
+            let router: Router = axum_router;
             let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
             logging::log!("listening on http://{}", addr);
             axum::serve(

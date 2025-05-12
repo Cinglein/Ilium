@@ -5,7 +5,7 @@ use std::{borrow::Borrow, fmt::Debug, hash::Hash};
 pub trait UserState: Component + Clone + Debug + AsStopwatch {
     type Info: Message;
     type Shared: SharedState;
-    fn info<S: AsState<User = Self>>(index: S::Index, state: &S) -> HashMap<S::Index, Self::Info>;
+    fn info<S: AsState<User = Self>>(index: S::Index, state: &S) -> HashMap<u64, Self::Info>;
     fn init(shared: &mut Self::Shared, users: usize) -> Vec<Self>;
 }
 

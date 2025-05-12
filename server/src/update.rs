@@ -1,13 +1,10 @@
 use crate::{account::AccountMap, queries::*, send::*};
 use bevy::prelude::*;
-use session::{action::Action, info::Info, queue::*, state::*, time::AsStopwatch};
+use session::{action::Action, info::*, queue::*, state::*, time::AsStopwatch};
 use std::borrow::Borrow;
 
-pub type ActionStateInfo<'a, QC> = Info<
-    <ActionState<'a, QC> as AsState>::User,
-    <ActionState<'a, QC> as AsState>::Shared,
-    <ActionState<'a, QC> as AsState>::Index,
->;
+pub type ActionStateInfo<'a, QC> =
+    Info<<ActionState<'a, QC> as AsState>::User, <ActionState<'a, QC> as AsState>::Shared>;
 
 pub enum ActionState<'a, QC: QueueComponent> {
     Mutable {
@@ -127,7 +124,8 @@ pub fn update_client<QC: QueueComponent>(sessions: Sessions<QC>, users: InSessio
             if let Some(info) = ActionState::info(session, user, &sessions, &users)
                 && let Ok(user) = users.get(user)
             {
-                user.send_frame.send(&info);
+                leptos::logging::log!("{info:?}");
+                user.send_frame.send(&StateInfo::Session(info));
             }
         }
     }

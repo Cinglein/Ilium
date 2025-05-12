@@ -35,7 +35,7 @@ impl SendFrame {
     where
         T: Serialize,
     {
-        if let Ok(bytes) = postcard::to_stdvec(data) {
+        if let Ok(bytes) = bitcode::serialize(data) {
             let frame = fastwebsockets::Frame::new(
                 true,
                 fastwebsockets::OpCode::Binary,
@@ -47,6 +47,7 @@ impl SendFrame {
     }
 }
 
+#[derive(Debug)]
 pub enum QueueSignal<QC: QueueComponent, U: UserData> {
     Join {
         send_frame: SendFrame,

@@ -14,7 +14,7 @@ pub trait Queue: Message {
     fn insert(&self, ec: &mut bevy::ecs::system::EntityCommands);
 }
 
-pub trait QueueComponent: Component + Default {
+pub trait QueueComponent: Component + Default + std::fmt::Debug {
     type Queue: Queue;
     type Lobby: Lobby;
     type Action: Action;
@@ -23,5 +23,5 @@ pub trait QueueComponent: Component + Default {
     >(
         index: S::Index,
         state: &S,
-    ) -> Info<S::User, S::Shared, S::Index>;
+    ) -> Info<S::User, S::Shared>;
 }

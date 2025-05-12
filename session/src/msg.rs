@@ -13,8 +13,24 @@ pub struct Msg<Q: Queue> {
 }
 
 impl<Q: Queue> Msg<Q> {
+    pub fn join(token: ClientToken, queue: Q) -> Self {
+        let msg_type = MsgType::Join;
+        Self {
+            token,
+            queue,
+            msg_type,
+        }
+    }
+    pub fn accept(token: ClientToken, queue: Q) -> Self {
+        let msg_type = MsgType::Accept;
+        Self {
+            token,
+            queue,
+            msg_type,
+        }
+    }
     pub fn leave(token: ClientToken, queue: Q) -> Self {
-        let msg_type = MsgType::Reconnect;
+        let msg_type = MsgType::Leave;
         Self {
             token,
             queue,

@@ -70,17 +70,17 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
         quote! {
             #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize)]
             pub struct #info_name {
-                #(#open_name: #open_type,)*
-                #(#hidden_name: #hidden_type,)*
+                #(pub #open_name: #open_type,)*
+                #(pub #hidden_name: #hidden_type,)*
             }
         }
     } else {
         quote! {
             #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize)]
             pub struct #info_name {
-                #(#open_name: #open_type,)*
-                #(#hidden_name: #hidden_type,)*
-                #(#private_name: Option<#private_type>,)*
+                #(pub #open_name: #open_type,)*
+                #(pub #hidden_name: #hidden_type,)*
+                #(pub #private_name: Option<#private_type>,)*
             }
         }
     };
@@ -132,7 +132,7 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
                 type Info = #info_name;
                 type Shared = #other;
                 fn info<S: ::ilium::session::AsState<User = #state>>(index: S::Index, state: &S) -> 
-                    ::bevy::utils::hashbrown::HashMap<S::Index, Self::Info> {
+                    ::bevy::utils::hashbrown::HashMap<u64, Self::Info> {
                     state.users().map(|(i, user)| {
                         let user: &#state = ::std::borrow::Borrow::borrow(&user);
                         let info = #info_name {
@@ -140,7 +140,7 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
                             #(#hidden_name: #hidden_fn(i, state),)*
                             #(#private_name: if index == i { Some(user.#private_name.clone()) } else { None },)*
                         };
-                        (i, info)
+                        (<S::Index as ::ilium::AsIndex>::to_index(&i), info)
                     })
                     .collect()
                 }

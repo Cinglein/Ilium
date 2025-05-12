@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bitcode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Resource)]
@@ -10,7 +11,9 @@ impl AccountMap {
     }
 }
 
-#[derive(Eq, PartialEq, Hash, Clone, Copy, Debug, Serialize, Deserialize, Component)]
+#[derive(
+    Eq, PartialEq, Hash, Clone, Copy, Debug, Serialize, Deserialize, Decode, Encode, Component,
+)]
 pub enum Account {
     Guest { ip: std::net::SocketAddr },
 }

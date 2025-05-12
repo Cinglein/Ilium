@@ -19,8 +19,8 @@ async fn parse_message<Q: Queue, S: Sender<Queue = Q>>(
     send_frame: SendFrame,
     ping: Ping,
 ) -> Option<ClientToken> {
-    match postcard::from_bytes::<Msg<Q>>(msg) {
-        Ok(msg) => {
+    match bincode::serde::decode_from_slice::<Msg<Q>, _>(msg, bincode::config::standard()) {
+        Ok((msg, _)) => {
             let token = msg.token;
             if let Err(e) = sender.send(msg, ip, send_frame, ping).await {
                 leptos::logging::log!("error sending signal for {ip:?}: {e:?}");

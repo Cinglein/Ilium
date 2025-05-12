@@ -10,4 +10,6 @@ server = []
 bevy.workspace = true
 eyre.workspace = true
 serde.workspace = true
-postcard.workspace = true
+bitcode.workspace = true
+
+codee = "0.3"

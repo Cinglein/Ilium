@@ -7,7 +7,7 @@ use syn::*;
 pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
     let queue: Ident = ast.ident;
-    let action: Ident = name_value(&ast.attrs, "action")
+    let action: Path = name_value(&ast.attrs, "action")
         .unwrap_or_else(|| abort_call_site!("Could not find action attribute"));
     let mut variant_name: Vec<Ident> = Vec::new();
     let mut component: Vec<Ident> = Vec::new();
@@ -25,10 +25,9 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
             for variant in variants.iter() {
                 let component_name = format_ident!("{}Component", variant.ident);
                 let name = format_ident!("{}Lobby", variant.ident);
-                let size: LitInt = name_value(&variant.attrs, "size")
+                let size: proc_macro2::TokenTree = name_value(&variant.attrs, "size")
                     .unwrap_or_else(|| abort_call_site!("Could not find lobby size"));
-                let ty: Type = parse_str(&format!("[::bevy::prelude::Entity; {}]", size))
-                    .expect("Could not parse lobby");
+                let ty: Type = parse_quote!([::bevy::prelude::Entity; #size]);
                 variant_name.push(variant.ident.clone());
                 component.push(component_name);
                 let lower = variant.ident.to_string().to_lowercase();
@@ -70,7 +69,7 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
                         }
                     }
 
-                    #[derive(Debug, Resource)]
+                    #[derive(Debug, ::bevy::prelude::Resource)]
                     pub struct #sender_name<U: ::ilium::server::data::UserData> {
                         pub pool: ::sqlx::Pool<U::DB>,
                         #(pub #queue_sender: ::ilium::kanal::Sender<::ilium::server::send::QueueSignal<#component, U>>,)*
@@ -166,9 +165,9 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
                     }
                 }
             } else if #[cfg(feature = "client")] {
-                quote! { () }
+                proc_macro2::TokenStream::default()
             } else {
-                quote! { () }
+                proc_macro2::TokenStream::default()
             }
         }
     };
@@ -191,9 +190,9 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
                     }
                 }
             } else if #[cfg(feature = "client")] {
-                quote! { () }
+                proc_macro2::TokenStream::default()
             } else {
-                quote! { () }
+                proc_macro2::TokenStream::default()
             }
         }
     };
@@ -212,7 +211,7 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
         }
 
         #(
-            #[derive(Clone, Default, ::bevy::prelude::Component)]
+            #[derive(Clone, Default, Debug, ::bevy::prelude::Component)]
             pub struct #component;
 
             #[derive(Clone, ::bevy::prelude::Component)]
@@ -241,15 +240,16 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
                 type Lobby = #lobby_name;
                 type Action = #action;
                 fn info<S: ::ilium::session::AsState<
-                    Shared = <#action as ::ilium::session::Action>::Shared, 
+                    Shared = <#action as ::ilium::session::Action>::Shared,
                     User = <#action as ::ilium::session::Action>::User,
                 >>(
                     index: S::Index,
                     state: &S,
-                ) -> ::ilium::session::Info<S::User, S::Shared, S::Index> {
+                ) -> ::ilium::session::Info<S::User, S::Shared> {
                     ::ilium::session::Info {
                         users: <Self::Action as ::ilium::session::Action>::User::info(index, state),
                         shared: <Self::Action as ::ilium::session::Action>::Shared::info(index, state),
+                        index: <S::Index as ::ilium::AsIndex>::to_index(&index),
                     }
                 }
             }

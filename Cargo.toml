@@ -20,19 +20,18 @@ kanal.workspace = true
 
 [workspace.dependencies]
 trait-variant = "0.1.2"
-bevy = "0.15"
+bevy = "0.15.3"
 web-sys = "0.3.72"
 serde = { version = "1.0.215", features = ["derive"] }
 wasm-bindgen = "0.2.95"
-axum = { version = "0.7.5", features = ["macros"] }
-fastwebsockets = { version = "0.8.0", features = ["with_axum", "upgrade", "unstable-split"] }
+axum = { version = "0.7.9", features = ["macros"] }
+fastwebsockets = { version = "0.9.0", features = ["with_axum", "upgrade", "unstable-split"] }
 kanal = "0.1.0-pre8"
-postcard = { version = "1.0.8", features = ["use-std"] }
+bincode = { version = "2.0.1", features = ["serde"] }
+bitcode = { version = "0.6.6", features = ["serde"] }
 tracing = { version = "0.1" }
-uuid = { version = "1.10.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
+uuid = { version = "1", features = ["v4", "fast-rng", "macro-diagnostics"] }
 eyre = "0.6.12"
-rkyv = { version = "0.8.9", features = ["bytecheck", "alloc"] }
-bytecheck = "0.8.0"
 
 leptos = { version = "0.7", features = ["nightly", "rkyv"] }
 leptos_axum = { version = "0.7", features = [] }

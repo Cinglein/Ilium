@@ -6,7 +6,13 @@ use sqlx::*;
 /// Data associated with a user account.
 #[trait_variant::make(Send)]
 pub trait UserData:
-    Component + Clone + Send + Sync + Unpin + for<'r> FromRow<'r, <Self::DB as Database>::Row>
+    Component
+    + std::fmt::Debug
+    + Clone
+    + Send
+    + Sync
+    + Unpin
+    + for<'r> FromRow<'r, <Self::DB as Database>::Row>
 {
     type O: Ord;
     type DB: Database;
