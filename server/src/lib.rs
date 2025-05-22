@@ -6,6 +6,7 @@ pub mod auth;
 pub mod data;
 pub mod matchmaking;
 pub mod queries;
+pub mod queue;
 pub mod send;
 pub mod state;
 pub mod time;

@@ -1,12 +1,12 @@
 use crate::account::Account;
-use bevy::prelude::*;
+use bevy::ecs::component::*;
 use core::future::Future;
 use sqlx::*;
 
 /// Data associated with a user account.
 #[trait_variant::make(Send)]
 pub trait UserData:
-    Component
+    Component<Mutability = Mutable>
     + std::fmt::Debug
     + Clone
     + Send

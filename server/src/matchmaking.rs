@@ -2,12 +2,14 @@ use crate::{
     account::AccountMap,
     data::UserData,
     queries::*,
+    queue::*,
     send::{QueueSignal, Receiver, ReconnectSignal},
     update::ActionStateInfo,
 };
-use bevy::{prelude::*, utils::hashbrown::HashSet};
+use bevy::prelude::*;
+use hashbrown::HashSet;
 use rand::{rngs::OsRng, TryRngCore};
-use session::{action::Action, info::StateInfo, queue::*, state::*};
+use session::{action::*, info::StateInfo, state::*};
 
 #[derive(Component)]
 pub struct Accepted;
@@ -18,7 +20,9 @@ pub fn process_queue<QC: QueueComponent, U: UserData>(
     accounts: ResMut<AccountMap>,
     in_queue: InQueue<QC, U>,
     in_lobby: InLobby<QC>,
-) {
+) where
+    QC::Action: Action<Shared = QC::Shared, User = QC::User>,
+{
     let accounts = &mut accounts.into_inner().0;
     let receiver = &receiver;
     while let Ok(Some(msg)) = receiver.try_recv() {
@@ -40,7 +44,7 @@ pub fn process_queue<QC: QueueComponent, U: UserData>(
             }
             QueueSignal::Accept { account, .. } => {
                 if let Some(player) = accounts.get(&account).and_then(|e| in_lobby.get(*e).ok()) {
-                    if let Some(mut ec) = commands.get_entity(player.entity) {
+                    if let Ok(mut ec) = commands.get_entity(player.entity) {
                         ec.insert(Accepted);
                     }
                 }
@@ -48,7 +52,7 @@ pub fn process_queue<QC: QueueComponent, U: UserData>(
             QueueSignal::Leave { account, .. } => {
                 if let Some(entity) = accounts.get(&account) {
                     if in_queue.contains(*entity) || in_lobby.contains(*entity) {
-                        if let Some(mut ec) = commands.get_entity(*entity) {
+                        if let Ok(mut ec) = commands.get_entity(*entity) {
                             ec.despawn();
                             accounts.remove(&account);
                         }
@@ -83,10 +87,10 @@ pub fn reconnect<QC: QueueComponent>(
 }
 
 /// Given a queue, matchmake users into a lobby
-pub fn matchmake<QC: QueueComponent, U: UserData>(
-    mut commands: Commands,
-    in_queue: InQueue<QC, U>,
-) {
+pub fn matchmake<QC: QueueComponent, U: UserData>(mut commands: Commands, in_queue: InQueue<QC, U>)
+where
+    QC::Action: Action<Shared = QC::Shared, User = QC::User>,
+{
     let mut users: Vec<_> = in_queue
         .iter()
         .map(|user| (user.entity, user.user_data.clone()))
@@ -105,7 +109,7 @@ pub fn matchmake<QC: QueueComponent, U: UserData>(
             });
             let mut seed = [0u8; 32];
             OsRng.try_fill_bytes(&mut seed).expect("OSRng Error");
-            let shared_state = <<QC::Action as Action>::Shared as SharedState>::init(seed);
+            let shared_state = <QC::Shared as SharedState>::init(seed);
             let session_id = EntityId(commands.spawn((shared_state, lobby.clone())).id());
             for entity in lobby.entities() {
                 if let Ok(user) = in_queue.get(entity) {
@@ -124,7 +128,7 @@ pub fn init_session<QC: QueueComponent>(
     accepted: InLobbyAccepted<QC>,
     mut sessions: SessionsPending<QC>,
 ) where
-    QC::Action: Action<Shared = <<QC::Action as Action>::User as UserState>::Shared>,
+    QC::User: UserState<Shared = QC::Shared>,
 {
     for mut session in sessions.iter_mut() {
         if session
@@ -132,10 +136,8 @@ pub fn init_session<QC: QueueComponent>(
             .entities()
             .fold(true, |b, e| b && accepted.contains(e))
         {
-            let user_states = <<QC::Action as Action>::User as UserState>::init(
-                session.state.as_mut(),
-                session.lobby.len(),
-            );
+            let user_states =
+                <QC::User as UserState>::init(session.state.as_mut(), session.lobby.len());
             session
                 .lobby
                 .entities()

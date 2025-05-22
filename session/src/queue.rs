@@ -1,27 +1,6 @@
-use crate::{action::Action, info::Info, msg::Message, state::AsState};
-use bevy::prelude::*;
+use crate::Action;
 
-pub trait Lobby: Clone + Component + for<'a> TryFrom<&'a [Entity]> {
-    fn len(&self) -> usize;
-    fn entities(&self) -> impl Iterator<Item = Entity>;
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-}
-
-pub trait Queue: Message {
+/// Everything that implements AsQueue on the client should implement Queue on the server
+pub trait AsQueue: Send + Sync + 'static {
     type Action: Action;
-    fn insert(&self, ec: &mut bevy::ecs::system::EntityCommands);
-}
-
-pub trait QueueComponent: Component + Default + std::fmt::Debug {
-    type Queue: Queue;
-    type Lobby: Lobby;
-    type Action: Action;
-    fn info<
-        S: AsState<Shared = <Self::Action as Action>::Shared, User = <Self::Action as Action>::User>,
-    >(
-        index: S::Index,
-        state: &S,
-    ) -> Info<S::User, S::Shared>;
 }

@@ -1,11 +1,8 @@
-use crate::{account::Account, data::*, time::Ping};
-use bevy::ecs::system::Resource;
+use crate::{account::Account, data::*, queue::*, time::Ping};
+use bevy::ecs::prelude::Resource;
 use core::future::Future;
 use serde::Serialize;
-use session::{
-    msg::Msg,
-    queue::{Queue, QueueComponent},
-};
+use session::msg::Msg;
 use sqlx::*;
 use std::marker::PhantomData;
 

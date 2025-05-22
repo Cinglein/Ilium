@@ -2,19 +2,17 @@ use crate::{
     account::AccountMap,
     data::UserData,
     matchmaking::{matchmake, process_queue, reconnect},
+    queue::*,
     send::{Receivers, Sender},
     state::{AppState, SenderAppState},
-    time::tick,
+    time::*,
     ws::ws_handler,
 };
 use axum::{extract::FromRef, routing::any, Router};
-use bevy::prelude::{PluginGroup, Update};
+use bevy::prelude::{BevyError, IntoScheduleConfigs, PluginGroup, System, Update};
 use leptos::{logging, prelude::*, IntoView};
 use leptos_axum::{file_and_error_handler, LeptosRoutes};
-use session::{
-    queue::{Queue, QueueComponent},
-    time::AsStopwatch,
-};
+use session::Action;
 use sqlx::*;
 
 pub trait Register {
@@ -54,7 +52,7 @@ impl App {
         let mut bevy_app = bevy::prelude::App::new();
         bevy_app
             .add_plugins(bevy::prelude::MinimalPlugins.set(
-                bevy::app::ScheduleRunnerPlugin::run_loop(bevy::utils::Duration::from_secs_f64(
+                bevy::app::ScheduleRunnerPlugin::run_loop(core::time::Duration::from_secs_f64(
                     1.0 / 60.0,
                 )),
             ))
@@ -72,19 +70,28 @@ impl App {
     pub fn insert_resource<R: bevy::prelude::Resource>(&mut self, resource: R) {
         self.bevy_app.insert_resource(resource);
     }
-    pub fn add_systems<S>(
+    pub fn add_systems<M>(
         mut self,
         schedule: impl bevy::ecs::schedule::ScheduleLabel,
-        systems: impl bevy::prelude::IntoSystemConfigs<S>,
+        systems: impl IntoScheduleConfigs<
+            Box<dyn System<Out = core::result::Result<(), BevyError>, In = ()>>,
+            M,
+        >,
     ) -> Self {
         self.bevy_app.add_systems(schedule, systems);
         self
     }
-    pub fn add_queue<QC: QueueComponent, U: UserData>(mut self) -> Self {
+    pub fn add_queue<QC: QueueComponent, U: UserData>(mut self) -> Self
+    where
+        QC::Action: Action<Shared = QC::Shared, User = QC::User>,
+    {
         self.bevy_app.add_systems(Update, process_queue::<QC, U>);
         self
     }
-    pub fn add_matchmake<QC: QueueComponent, U: UserData>(mut self) -> Self {
+    pub fn add_matchmake<QC: QueueComponent, U: UserData>(mut self) -> Self
+    where
+        QC::Action: Action<Shared = QC::Shared, User = QC::User>,
+    {
         self.bevy_app.add_systems(Update, matchmake::<QC, U>);
         self
     }

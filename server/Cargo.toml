@@ -9,6 +9,7 @@ axum.workspace = true
 fastwebsockets.workspace = true
 kanal.workspace = true
 bevy.workspace = true
+hashbrown.workspace = true
 uuid.workspace = true
 leptos.workspace = true
 leptos_axum.workspace = true

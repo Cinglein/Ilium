@@ -1,25 +1,31 @@
-use crate::{account::AccountMap, queries::*, send::*};
+use crate::{account::AccountMap, queries::*, queue::*, send::*, time::*};
 use bevy::prelude::*;
-use session::{action::Action, info::*, queue::*, state::*, time::AsStopwatch};
+use session::{action::Action, info::*, state::*};
 use std::borrow::Borrow;
 
 pub type ActionStateInfo<'a, QC> =
     Info<<ActionState<'a, QC> as AsState>::User, <ActionState<'a, QC> as AsState>::Shared>;
 
-pub enum ActionState<'a, QC: QueueComponent> {
+pub enum ActionState<'a, QC: QueueComponent>
+where
+    QC::Action: Action<Shared = QC::Shared, User = QC::User>,
+{
     Mutable {
         users: &'a mut InSession<'a, 'a, QC>,
-        shared: Mut<'a, <QC::Action as Action>::Shared>,
+        shared: Mut<'a, QC::Shared>,
         lobby: Mut<'a, QC::Lobby>,
     },
     Immutable {
         users: &'a InSession<'a, 'a, QC>,
-        shared: &'a <QC::Action as Action>::Shared,
+        shared: &'a QC::Shared,
         lobby: &'a QC::Lobby,
     },
 }
 
-impl<'a, QC: QueueComponent> ActionState<'a, QC> {
+impl<'a, QC: QueueComponent> ActionState<'a, QC>
+where
+    QC::Action: Action<Shared = QC::Shared, User = QC::User>,
+{
     fn info(
         session_id: Entity,
         user_id: Entity,
@@ -65,7 +71,7 @@ impl<'a, QC: QueueComponent> ActionState<'a, QC> {
         let shared = session.state;
         let lobby = session.lobby;
         msg.action.resolve(
-            user_id,
+            user_id.to_index(),
             Self::Mutable {
                 users,
                 shared,
@@ -76,20 +82,25 @@ impl<'a, QC: QueueComponent> ActionState<'a, QC> {
     }
 }
 
-impl<'a, QC: QueueComponent> AsState for ActionState<'a, QC> {
-    type Shared = <QC::Action as Action>::Shared;
-    type User = <QC::Action as Action>::User;
+impl<'a, QC: QueueComponent> AsState for ActionState<'a, QC>
+where
+    QC::Action: Action<Shared = QC::Shared, User = QC::User>,
+{
+    type Shared = QC::Shared;
+    type User = QC::User;
     type Index = Entity;
-    fn user(&self, i: Self::Index) -> Option<impl Borrow<Self::User>> {
+    fn user(&self, i: u64) -> Option<impl Borrow<Self::User>> {
+        let i = Self::Index::from_index(i)?;
         match self {
             Self::Mutable { users, .. } => users.get(i).ok().map(|u| u.state),
             Self::Immutable { users, .. } => users.get(i).ok().map(|u| u.state),
         }
     }
-    fn users(&self) -> impl Iterator<Item = (Self::Index, impl Borrow<Self::User>)> {
+    fn users(&self) -> impl Iterator<Item = (u64, impl Borrow<Self::User>)> {
         self.indices().filter_map(|i| Some((i, self.user(i)?)))
     }
-    fn user_mut(&mut self, i: Self::Index) -> Option<impl AsMut<Self::User>> {
+    fn user_mut(&mut self, i: u64) -> Option<impl AsMut<Self::User>> {
+        let i = Self::Index::from_index(i)?;
         let Self::Mutable { users, .. } = self else {
             return None;
         };
@@ -107,14 +118,19 @@ impl<'a, QC: QueueComponent> AsState for ActionState<'a, QC> {
         };
         Some(shared)
     }
-    fn indices(&self) -> impl Iterator<Item = Self::Index> {
+    fn indices(&self) -> impl Iterator<Item = u64> {
         match self {
             Self::Mutable { lobby, .. } => lobby.entities(),
             Self::Immutable { lobby, .. } => lobby.entities(),
         }
+        .map(|i| i.to_index())
     }
 }
-pub fn update_client<QC: QueueComponent>(sessions: Sessions<QC>, users: InSession<QC>) {
+
+pub fn update_client<QC: QueueComponent>(sessions: Sessions<QC>, users: InSession<QC>)
+where
+    QC::Action: Action<Shared = QC::Shared, User = QC::User>,
+{
     let s: Vec<_> = sessions
         .iter()
         .map(|s| (s.entity, s.lobby.clone()))
@@ -137,7 +153,9 @@ pub fn process_actions<QC: QueueComponent>(
     actions: ResMut<Receiver<ActionSignal<QC>>>,
     mut sessions: Sessions<QC>,
     mut users: InSession<QC>,
-) {
+) where
+    QC::Action: Action<Shared = QC::Shared, User = QC::User>,
+{
     while let Ok(Some(msg)) = actions.try_recv() {
         ActionState::resolve(
             msg,
