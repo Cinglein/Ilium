@@ -19,7 +19,7 @@ pub trait UserData:
     fn query(
         pool: &Pool<Self::DB>,
         account: &Account,
-    ) -> impl Future<Output = eyre::Result<Self>> + Send + Sync;
+    ) -> impl Future<Output = eyre::Result<Self>> + Send;
     fn matchmake_priority(&self) -> Self::O;
     fn matchmake_valid(&self, user_data: &Self) -> bool;
 }

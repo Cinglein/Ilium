@@ -86,7 +86,7 @@ pub trait Sender: Send + Sync + Clone + Resource {
         ip: std::net::SocketAddr,
         send_frame: SendFrame,
         ping: Ping,
-    ) -> impl Future<Output = eyre::Result<()>> + Send + Sync;
+    ) -> impl Future<Output = eyre::Result<()>> + Send;
 }
 
 pub trait Receivers {

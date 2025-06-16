@@ -22,10 +22,3 @@ pub trait AsStopwatch: Component<Mutability = Mutable> {
     fn reset(&mut self);
     fn tick(&mut self, delta: Duration);
 }
-
-impl<T: Component<Mutability = Mutable>> AsStopwatch for T {
-    fn pause(&mut self) {}
-    fn unpause(&mut self) {}
-    fn reset(&mut self) {}
-    fn tick(&mut self, _delta: Duration) {}
-}

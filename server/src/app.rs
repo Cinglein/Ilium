@@ -99,7 +99,7 @@ impl App {
         self.bevy_app.add_systems(Update, reconnect::<QC>);
         self
     }
-    pub async fn run<IP>(self, addr: IP)
+    pub fn run<IP>(self, addr: IP)
     where
         IP: 'static + Send + Sync + tokio::net::ToSocketAddrs + std::fmt::Display,
     {

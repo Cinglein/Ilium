@@ -1,6 +1,6 @@
 use crate::send::Sender;
 use axum::extract::FromRef;
-use leptos::prelude::*;
+use leptos::prelude::LeptosOptions;
 
 pub trait AppState: 'static + Clone + Send + Sync
 where

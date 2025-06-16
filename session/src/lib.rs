@@ -9,6 +9,7 @@ pub mod token;
 
 pub use action::*;
 pub use codec::*;
+pub use hashbrown::HashMap;
 pub use info::*;
 pub use msg::*;
 pub use queue::*;

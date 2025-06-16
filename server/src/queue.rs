@@ -23,7 +23,9 @@ pub trait QueueComponent: Component + Default + std::fmt::Debug {
     fn info<S: AsState<Shared = Self::Shared, User = Self::User>>(
         index: S::Index,
         state: &S,
-    ) -> Info<S::User, S::Shared>;
+    ) -> Info<S::User, S::Shared>
+    where
+        S::Index: AsIndex;
 }
 
 pub trait AsIndex: Sized + Copy + Clone + Eq + PartialEq + Hash {

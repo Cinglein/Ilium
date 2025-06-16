@@ -64,10 +64,13 @@ where
         accounts: impl AsRef<AccountMap>,
         sessions: &'a mut Sessions<'a, 'a, QC>,
         users: &'a mut InSession<'a, 'a, QC>,
-    ) -> Option<()> {
-        let user_id = accounts.as_ref().get(&msg.account)?;
-        let session_id = users.get(user_id).ok()?.session.0;
-        let session = sessions.get_mut(session_id).ok()?;
+    ) -> eyre::Result<()> {
+        let user_id = accounts
+            .as_ref()
+            .get(&msg.account)
+            .ok_or(eyre::eyre!("Could not find user id"))?;
+        let session_id = users.get(user_id)?.session.0;
+        let session = sessions.get_mut(session_id)?;
         let shared = session.state;
         let lobby = session.lobby;
         msg.action.resolve(
@@ -77,8 +80,7 @@ where
                 shared,
                 lobby,
             },
-        );
-        Some(())
+        )
     }
 }
 
@@ -155,9 +157,10 @@ pub fn process_actions<QC: QueueComponent>(
     mut users: InSession<QC>,
 ) where
     QC::Action: Action<Shared = QC::Shared, User = QC::User>,
+    QC::Shared: AsStopwatch,
 {
     while let Ok(Some(msg)) = actions.try_recv() {
-        ActionState::resolve(
+        let _ = ActionState::resolve(
             msg,
             &accounts,
             &mut sessions.reborrow(),

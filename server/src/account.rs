@@ -16,4 +16,5 @@ impl AccountMap {
 )]
 pub enum Account {
     Guest { ip: std::net::SocketAddr },
+    Registered { id: i64 },
 }
