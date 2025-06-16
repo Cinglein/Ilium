@@ -6,7 +6,7 @@ pub trait Action: Sized + Copy + Message {
     fn update<S: AsState<User = Self::User, Shared = Self::Shared>>(state: S);
     fn resolve<S: AsState<User = Self::User, Shared = Self::Shared>>(
         self,
-        index: S::Index,
+        index: u64,
         state: S,
-    );
+    ) -> eyre::Result<()>;
 }

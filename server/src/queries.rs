@@ -1,26 +1,13 @@
-use crate::{account::Account, data::UserData, matchmaking::Accepted, send::SendFrame, time::Ping};
+use crate::{
+    account::Account, data::UserData, matchmaking::Accepted, queue::*, send::SendFrame, time::Ping,
+};
 use bevy::{ecs::query::QueryData, prelude::*};
-use session::{action::Action, queue::QueueComponent};
 
 pub type InQueue<'a, 'b, Q, U> = Query<'a, 'b, AccountQuery<U>, (With<Q>, Without<EntityId>)>;
-pub type InLobby<'a, 'b, QC> = Query<
-    'a,
-    'b,
-    LobbyQuery,
-    (
-        Without<<<QC as QueueComponent>::Action as Action>::User>,
-        Without<Accepted>,
-    ),
->;
-pub type InLobbyAccepted<'a, 'b, QC> = Query<
-    'a,
-    'b,
-    LobbyQuery,
-    (
-        Without<<<QC as QueueComponent>::Action as Action>::User>,
-        With<Accepted>,
-    ),
->;
+pub type InLobby<'a, 'b, QC> =
+    Query<'a, 'b, LobbyQuery, (Without<<QC as QueueComponent>::User>, Without<Accepted>)>;
+pub type InLobbyAccepted<'a, 'b, QC> =
+    Query<'a, 'b, LobbyQuery, (Without<<QC as QueueComponent>::User>, With<Accepted>)>;
 pub type InSession<'a, 'b, QC> = Query<'a, 'b, UserQuery<QC>>;
 pub type SessionsPending<'a, 'b, QC> = Query<'a, 'b, SessionQuery<QC>, Without<Accepted>>;
 pub type Sessions<'a, 'b, QC> = Query<'a, 'b, SessionQuery<QC>, With<Accepted>>;
@@ -53,7 +40,7 @@ pub struct UserQuery<QC: QueueComponent> {
     pub entity: Entity,
     pub session: &'static mut EntityId,
     pub account: &'static mut Account,
-    pub state: &'static mut <<QC as QueueComponent>::Action as Action>::User,
+    pub state: &'static mut QC::User,
     pub send_frame: &'static mut SendFrame,
     pub ping: &'static mut Ping,
 }
@@ -62,6 +49,6 @@ pub struct UserQuery<QC: QueueComponent> {
 #[query_data(mutable)]
 pub struct SessionQuery<QC: QueueComponent> {
     pub entity: Entity,
-    pub lobby: &'static mut <QC as QueueComponent>::Lobby,
-    pub state: &'static mut <<QC as QueueComponent>::Action as Action>::Shared,
+    pub lobby: &'static mut QC::Lobby,
+    pub state: &'static mut QC::Shared,
 }

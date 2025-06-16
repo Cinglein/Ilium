@@ -71,7 +71,7 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
 
                     #[derive(Debug, ::bevy::prelude::Resource)]
                     pub struct #sender_name<U: ::ilium::server::data::UserData> {
-                        pub pool: ::sqlx::Pool<U::DB>,
+                        pub pool: ::ilium::server::sqlx::Pool<U::DB>,
                         #(pub #queue_sender: ::ilium::kanal::Sender<::ilium::server::send::QueueSignal<#component, U>>,)*
                         #(pub #reconnect_sender: ::ilium::kanal::Sender<::ilium::server::send::ReconnectSignal<#component>>,)*
                         #(pub #action_sender: ::ilium::kanal::Sender<::ilium::server::send::ActionSignal<#component>>,)*
@@ -88,12 +88,12 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
                         }
                     }
 
-                    impl<U, App> ::axum::extract::FromRef<::ilium::server::state::SenderAppState<#sender_name<U>, App>>
+                    impl<U, App> ::ilium::server::axum::extract::FromRef<::ilium::server::state::SenderAppState<#sender_name<U>, App>>
                         for #sender_name<U>
                     where
                         U: ::ilium::server::data::UserData,
                         App: ::ilium::server::state::AppState,
-                        ::leptos::prelude::LeptosOptions: ::axum::extract::FromRef<App>,
+                        ::ilium::server::leptos::prelude::LeptosOptions: ::ilium::server::axum::extract::FromRef<App>,
                     {
                         fn from_ref(input: &::ilium::server::state::SenderAppState<#sender_name<U>, App>) -> Self {
                             input.sender.clone()
@@ -104,7 +104,7 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
                         type Receivers = #receivers_name<Self::UserData>;
                         type Queue = #queue;
                         type UserData = U;
-                        fn new(pool: ::sqlx::Pool<U::DB>) -> (Self, Self::Receivers) {
+                        fn new(pool: ::ilium::server::sqlx::Pool<U::DB>) -> (Self, Self::Receivers) {
                             #(let (#queue_sender, #queue_receiver) = ::ilium::kanal::unbounded();)*
                             #(let (#reconnect_sender, #reconnect_receiver) = ::ilium::kanal::unbounded();)*
                             #(let (#action_sender, #action_receiver) = ::ilium::kanal::unbounded();)*
@@ -127,7 +127,7 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
                             ip: ::std::net::SocketAddr,
                             send_frame: ::ilium::server::send::SendFrame,
                             ping: ::ilium::server::time::Ping,
-                        ) -> impl ::core::future::Future<Output = ::eyre::Result<()>> + Send + Sync {
+                        ) -> impl ::core::future::Future<Output = ::eyre::Result<()>> + Send {
                             async move {
                                 let ::ilium::session::msg::Msg { token, queue, msg_type } = msg;
                                 let account = ::ilium::server::auth::auth(token, ip);
@@ -197,63 +197,82 @@ pub fn derive_queue_impl(input: TokenStream) -> TokenStream {
         }
     };
 
+    let queue_derive = {
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "server")] {
+                quote! {
+                    impl ::ilium::server::Queue for #queue {
+                        fn insert(&self, ec: &mut ::bevy::ecs::system::EntityCommands) {
+                            match self {
+                                #(Self::#variant_name => ec.insert(#component),)*
+                            };
+                        }
+                    }
+
+                    #(
+                        #[derive(Clone, Default, Debug, ::bevy::prelude::Component)]
+                        pub struct #component;
+
+                        #[derive(Clone, ::bevy::prelude::Component)]
+                        pub struct #lobby_name(#lobby_type);
+
+                        impl<'a> std::convert::TryFrom<&'a [::bevy::prelude::Entity]> for #lobby_name {
+                            type Error = std::array::TryFromSliceError;
+                            fn try_from(v: &[::bevy::prelude::Entity]) -> Result<Self, Self::Error> {
+                                let list: #lobby_type = v.try_into()?;
+                                Ok(#lobby_name(list))
+                            }
+                        }
+
+                        impl ::ilium::server::Lobby for #lobby_name {
+                            fn len(&self) -> usize {
+                                self.0.len()
+                            }
+                            fn entities(&self) -> impl Iterator<Item = ::bevy::prelude::Entity> {
+                                let Self(list) = self;
+                                list.iter().copied()
+                            }
+                        }
+
+                        impl ::ilium::server::QueueComponent for #component {
+                            type Queue = #queue;
+                            type Lobby = #lobby_name;
+                            type Action = #action;
+                            type Shared = <#action as ::ilium::Action>::Shared;
+                            type User = <#action as ::ilium::Action>::User;
+                            fn info<S: ::ilium::session::AsState<
+                                Shared = <#action as ::ilium::Action>::Shared,
+                                User = <#action as ::ilium::Action>::User,
+                            >>(
+                                index: S::Index,
+                                state: &S,
+                            ) -> ::ilium::session::Info<S::User, S::Shared>
+                            where
+                                S::Index: ::ilium::server::AsIndex
+                            {
+                                ::ilium::session::Info {
+                                    users: Self::User::info(index, state),
+                                    shared: Self::Shared::info(index, state),
+                                    index: <S::Index as ::ilium::server::AsIndex>::to_index(&index),
+                                }
+                            }
+                        }
+                    )*
+                }
+            } else {
+                proc_macro2::TokenStream::default()
+            }
+        }
+    };
+
     quote! {
         #sender
         #register
+        #queue_derive
 
-        impl ::ilium::session::Queue for #queue {
+        impl ::ilium::session::AsQueue for #queue {
             type Action = #action;
-            fn insert(&self, ec: &mut ::bevy::ecs::system::EntityCommands) {
-                match self {
-                    #(Self::#variant_name => ec.insert(#component),)*
-                };
-            }
         }
-
-        #(
-            #[derive(Clone, Default, Debug, ::bevy::prelude::Component)]
-            pub struct #component;
-
-            #[derive(Clone, ::bevy::prelude::Component)]
-            pub struct #lobby_name(#lobby_type);
-
-            impl<'a> std::convert::TryFrom<&'a [::bevy::prelude::Entity]> for #lobby_name {
-                type Error = std::array::TryFromSliceError;
-                fn try_from(v: &[::bevy::prelude::Entity]) -> Result<Self, Self::Error> {
-                    let list: #lobby_type = v.try_into()?;
-                    Ok(#lobby_name(list))
-                }
-            }
-
-            impl ::ilium::session::Lobby for #lobby_name {
-                fn len(&self) -> usize {
-                    self.0.len()
-                }
-                fn entities(&self) -> impl Iterator<Item = ::bevy::prelude::Entity> {
-                    let Self(list) = self;
-                    list.iter().copied()
-                }
-            }
-
-            impl ::ilium::session::QueueComponent for #component {
-                type Queue = #queue;
-                type Lobby = #lobby_name;
-                type Action = #action;
-                fn info<S: ::ilium::session::AsState<
-                    Shared = <#action as ::ilium::session::Action>::Shared,
-                    User = <#action as ::ilium::session::Action>::User,
-                >>(
-                    index: S::Index,
-                    state: &S,
-                ) -> ::ilium::session::Info<S::User, S::Shared> {
-                    ::ilium::session::Info {
-                        users: <Self::Action as ::ilium::session::Action>::User::info(index, state),
-                        shared: <Self::Action as ::ilium::session::Action>::Shared::info(index, state),
-                        index: <S::Index as ::ilium::AsIndex>::to_index(&index),
-                    }
-                }
-            }
-        )*
     }
     .into()
 }

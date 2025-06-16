@@ -22,7 +22,6 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
     let init = name_value::<Path>(&ast.attrs, "init")
         .map(|path| if is_shared { quote!(#path(seed)) } else { quote!(#path(shared, users)) })
         .unwrap_or(if is_shared { quote!(Default::default()) } else { quote!(vec![Default::default(); users]) });
-    let timers: Vec<Ident> = name_value::<CommaSeparated<Ident>>(&ast.attrs, "timers").map(|t| t.0).unwrap_or_default();
     let mut open_name: Vec<Ident> = Vec::new();
     let mut open_type: Vec<Type> = Vec::new();
     let mut hidden_name: Vec<Ident> = Vec::new();
@@ -84,19 +83,28 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
             }
         }
     };
-    let timer = quote! {
-        impl ::ilium::session::AsStopwatch for #state {
-            fn pause(&mut self) {
-                #(self.#timers.pause();)*
-            }
-            fn unpause(&mut self) {
-                #(self.#timers.unpause();)*
-            }
-            fn reset(&mut self) {
-                #(self.#timers.reset();)*
-            }
-            fn tick(&mut self, delta: ::std::time::Duration) {
-                #(self.#timers.tick(delta);)*
+    let timer = {
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "server")] {
+                let timers: Vec<Ident> = name_value::<CommaSeparated<Ident>>(&ast.attrs, "timers").map(|t| t.0).unwrap_or_default();
+                quote! {
+                    impl ::ilium::server::AsStopwatch for #state {
+                        fn pause(&mut self) {
+                            #(self.#timers.pause();)*
+                        }
+                        fn unpause(&mut self) {
+                            #(self.#timers.unpause();)*
+                        }
+                        fn reset(&mut self) {
+                            #(self.#timers.reset();)*
+                        }
+                        fn tick(&mut self, delta: ::std::time::Duration) {
+                            #(self.#timers.tick(delta);)*
+                        }
+                    }
+                }
+            } else {
+                proc_macro2::TokenStream::default()
             }
         }
     }; 
@@ -111,7 +119,7 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
                 type User = #other; 
                 fn info<S: ::ilium::session::AsState<Shared = #state>>(index: S::Index, state: &S) -> Self::Info {
                     let shared = state.shared();
-                    let shared: &#state = ::std::borrow::Borrow::borrow(&shared);
+                    let shared: &#state = ::core::borrow::Borrow::borrow(&shared);
                     #info_name {
                         #(#open_name: shared.#open_name.clone(),)*
                         #(#hidden_name: #hidden_fn(index, state),)*
@@ -131,16 +139,15 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
             impl ::ilium::session::UserState for #state {
                 type Info = #info_name;
                 type Shared = #other;
-                fn info<S: ::ilium::session::AsState<User = #state>>(index: S::Index, state: &S) -> 
-                    ::bevy::utils::hashbrown::HashMap<u64, Self::Info> {
+                fn info<S: ::ilium::session::AsState<User = #state>>(index: S::Index, state: &S) -> ::ilium::HashMap<u64, Self::Info> {
                     state.users().map(|(i, user)| {
-                        let user: &#state = ::std::borrow::Borrow::borrow(&user);
+                        let user: &#state = ::core::borrow::Borrow::borrow(&user);
                         let info = #info_name {
                             #(#open_name: user.#open_name.clone(),)*
                             #(#hidden_name: #hidden_fn(i, state),)*
                             #(#private_name: if index == i { Some(user.#private_name.clone()) } else { None },)*
                         };
-                        (<S::Index as ::ilium::AsIndex>::to_index(&i), info)
+                        (i, info)
                     })
                     .collect()
                 }

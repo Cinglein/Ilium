@@ -7,9 +7,9 @@ edition = "2021"
 server = []
 
 [dependencies]
-bevy.workspace = true
 eyre.workspace = true
 serde.workspace = true
 bitcode.workspace = true
+hashbrown.workspace = true
 
 codee = "0.3"

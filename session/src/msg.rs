@@ -1,4 +1,4 @@
-use crate::{queue::Queue, token::ClientToken};
+use crate::{AsQueue, ClientToken};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::fmt::Debug;
 
@@ -6,13 +6,13 @@ pub trait Message = 'static + Clone + Send + Sync + Serialize + DeserializeOwned
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(bound = "Q: Serialize + DeserializeOwned")]
-pub struct Msg<Q: Queue> {
+pub struct Msg<Q: AsQueue> {
     pub token: ClientToken,
     pub queue: Q,
     pub msg_type: MsgType<Q>,
 }
 
-impl<Q: Queue> Msg<Q> {
+impl<Q: AsQueue> Msg<Q> {
     pub fn join(token: ClientToken, queue: Q) -> Self {
         let msg_type = MsgType::Join;
         Self {
@@ -40,7 +40,7 @@ impl<Q: Queue> Msg<Q> {
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub enum MsgType<Q: Queue> {
+pub enum MsgType<Q: AsQueue> {
     Join,
     Reconnect,
     Accept,

@@ -9,6 +9,7 @@ axum.workspace = true
 fastwebsockets.workspace = true
 kanal.workspace = true
 bevy.workspace = true
+hashbrown.workspace = true
 uuid.workspace = true
 leptos.workspace = true
 leptos_axum.workspace = true
@@ -18,7 +19,7 @@ bincode.workspace = true
 bitcode.workspace = true
 serde.workspace = true
 
-sqlx = { version = "0.8.3", features = [
+sqlx = { version = "0.8.6", features = [
   "runtime-tokio-rustls",
   "chrono",
 ] }

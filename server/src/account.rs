@@ -3,7 +3,7 @@ use bitcode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Resource)]
-pub struct AccountMap(pub bevy::utils::hashbrown::HashMap<Account, bevy::prelude::Entity>);
+pub struct AccountMap(pub hashbrown::HashMap<Account, bevy::prelude::Entity>);
 
 impl AccountMap {
     pub fn get(&self, account: &Account) -> Option<bevy::prelude::Entity> {
@@ -16,4 +16,5 @@ impl AccountMap {
 )]
 pub enum Account {
     Guest { ip: std::net::SocketAddr },
+    Registered { id: i64 },
 }

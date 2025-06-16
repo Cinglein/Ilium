@@ -1,11 +1,8 @@
-use crate::{account::Account, data::*, time::Ping};
-use bevy::ecs::system::Resource;
+use crate::{account::Account, data::*, queue::*, time::Ping};
+use bevy::ecs::prelude::Resource;
 use core::future::Future;
 use serde::Serialize;
-use session::{
-    msg::Msg,
-    queue::{Queue, QueueComponent},
-};
+use session::msg::Msg;
 use sqlx::*;
 use std::marker::PhantomData;
 
@@ -89,7 +86,7 @@ pub trait Sender: Send + Sync + Clone + Resource {
         ip: std::net::SocketAddr,
         send_frame: SendFrame,
         ping: Ping,
-    ) -> impl Future<Output = eyre::Result<()>> + Send + Sync;
+    ) -> impl Future<Output = eyre::Result<()>> + Send;
 }
 
 pub trait Receivers {
