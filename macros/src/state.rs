@@ -15,9 +15,9 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
     let state: Ident = ast.ident;
     let info_name: Ident = format_ident!("{state}Info");
     let other: Type = if is_shared {
-        name_value(&ast.attrs, "user").unwrap_or_else(|| abort_call_site!("Could not find state attribute")) 
+        name_value(&ast.attrs, "user").unwrap_or_else(|| abort_call_site!("Could not find `user` attribute")) 
     } else {
-        name_value(&ast.attrs, "shared").unwrap_or_else(|| abort_call_site!("Could not find state attribute")) 
+        name_value(&ast.attrs, "shared").unwrap_or_else(|| abort_call_site!("Could not find `shared` attribute")) 
     };
     let init = name_value::<Path>(&ast.attrs, "init")
         .map(|path| if is_shared { quote!(#path(seed)) } else { quote!(#path(shared, users)) })
@@ -140,14 +140,14 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
                 type Info = #info_name;
                 type Shared = #other;
                 fn info<S: ::ilium::session::AsState<User = #state>>(index: S::Index, state: &S) -> ::ilium::HashMap<u64, Self::Info> {
-                    state.users().map(|(i, user)| {
+                    state.users().filter_map(|(i, user)| {
                         let user: &#state = ::core::borrow::Borrow::borrow(&user);
                         let info = #info_name {
                             #(#open_name: user.#open_name.clone(),)*
                             #(#hidden_name: #hidden_fn(i, state),)*
-                            #(#private_name: if index == i { Some(user.#private_name.clone()) } else { None },)*
+                            #(#private_name: if state.index_matches(i, index) { Some(user.#private_name.clone()) } else { None },)*
                         };
-                        (i, info)
+                        Some((i, info))
                     })
                     .collect()
                 }

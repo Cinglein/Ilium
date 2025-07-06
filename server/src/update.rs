@@ -91,6 +91,9 @@ where
     type Shared = QC::Shared;
     type User = QC::User;
     type Index = Entity;
+    fn index_matches(&self, i: u64, index: Self::Index) -> bool {
+        index.to_index() == i
+    }
     fn user(&self, i: u64) -> Option<impl Borrow<Self::User>> {
         let i = Self::Index::from_index(i)?;
         match self {

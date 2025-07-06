@@ -20,6 +20,7 @@ pub trait AsState {
     type Shared: SharedState;
     type User: UserState;
     type Index: Sized + Copy + Clone + Eq + PartialEq + Hash;
+    fn index_matches(&self, i: u64, index: Self::Index) -> bool;
     fn user(&self, i: u64) -> Option<impl Borrow<Self::User>>;
     fn users(&self) -> impl Iterator<Item = (u64, impl Borrow<Self::User>)>;
     fn user_mut(&mut self, i: u64) -> Option<impl AsMut<Self::User>>;
