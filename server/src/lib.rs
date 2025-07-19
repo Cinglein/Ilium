@@ -1,5 +1,3 @@
-#![feature(let_chains)]
-
 pub mod account;
 pub mod app;
 pub mod auth;
