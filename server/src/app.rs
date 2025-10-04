@@ -9,7 +9,7 @@ use crate::{
     ws::ws_handler,
 };
 use axum::{extract::FromRef, routing::any, Router};
-use bevy::prelude::{BevyError, IntoScheduleConfigs, PluginGroup, System, Update};
+use bevy::prelude::{IntoScheduleConfigs, PluginGroup, System, Update};
 use leptos::{logging, prelude::*, IntoView};
 use leptos_axum::{file_and_error_handler, LeptosRoutes};
 use session::Action;
@@ -73,10 +73,7 @@ impl App {
     pub fn add_systems<M>(
         mut self,
         schedule: impl bevy::ecs::schedule::ScheduleLabel,
-        systems: impl IntoScheduleConfigs<
-            Box<dyn System<Out = core::result::Result<(), BevyError>, In = ()>>,
-            M,
-        >,
+        systems: impl IntoScheduleConfigs<Box<dyn System<Out = (), In = ()>>, M>,
     ) -> Self {
         self.bevy_app.add_systems(schedule, systems);
         self

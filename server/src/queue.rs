@@ -10,7 +10,7 @@ pub trait Lobby: 'static + Clone + Send + Sync + for<'a> TryFrom<&'a [Entity]> {
     }
 }
 
-pub trait Queue: AsQueue + Message {
+pub trait Queue: AsQueue + session::Message {
     fn insert(&self, ec: &mut bevy::ecs::system::EntityCommands);
 }
 
@@ -35,7 +35,7 @@ pub trait AsIndex: Sized + Copy + Clone + Eq + PartialEq + Hash {
 
 impl AsIndex for bevy::prelude::Entity {
     fn from_index(i: u64) -> Option<Self> {
-        Self::try_from_bits(i).ok()
+        Self::try_from_bits(i)
     }
     fn to_index(&self) -> u64 {
         self.to_bits()
