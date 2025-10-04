@@ -1,5 +1,5 @@
 use crate::*;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 pub type AsInfo<Q> =
     Info<<<Q as AsQueue>::Action as Action>::User, <<Q as AsQueue>::Action as Action>::Shared>;

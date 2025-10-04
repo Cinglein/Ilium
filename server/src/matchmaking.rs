@@ -8,7 +8,7 @@ use crate::{
 };
 use bevy::prelude::*;
 use hashbrown::HashSet;
-use rand::{rngs::OsRng, TryRngCore};
+use rand::{TryRngCore, rngs::OsRng};
 use session::{action::*, info::StateInfo, state::*};
 
 #[derive(Component)]
@@ -43,20 +43,19 @@ pub fn process_queue<QC: QueueComponent, U: UserData>(
                 }
             }
             QueueSignal::Accept { account, .. } => {
-                if let Some(player) = accounts.get(&account).and_then(|e| in_lobby.get(*e).ok()) {
-                    if let Ok(mut ec) = commands.get_entity(player.entity) {
-                        ec.insert(Accepted);
-                    }
+                if let Some(player) = accounts.get(&account).and_then(|e| in_lobby.get(*e).ok())
+                    && let Ok(mut ec) = commands.get_entity(player.entity)
+                {
+                    ec.insert(Accepted);
                 }
             }
             QueueSignal::Leave { account, .. } => {
-                if let Some(entity) = accounts.get(&account) {
-                    if in_queue.contains(*entity) || in_lobby.contains(*entity) {
-                        if let Ok(mut ec) = commands.get_entity(*entity) {
-                            ec.despawn();
-                            accounts.remove(&account);
-                        }
-                    }
+                if let Some(entity) = accounts.get(&account)
+                    && (in_queue.contains(*entity) || in_lobby.contains(*entity))
+                    && let Ok(mut ec) = commands.get_entity(*entity)
+                {
+                    ec.despawn();
+                    accounts.remove(&account);
                 }
             }
         }
@@ -77,11 +76,11 @@ pub fn reconnect<QC: QueueComponent>(
         ..
     })) = receiver.try_recv()
     {
-        if let Some(entity) = accounts.get(&account).copied() {
-            if let Ok(mut ec) = in_session.get_mut(entity) {
-                *ec.send_frame = send_frame;
-                *ec.ping = ping;
-            }
+        if let Some(entity) = accounts.get(&account).copied()
+            && let Ok(mut ec) = in_session.get_mut(entity)
+        {
+            *ec.send_frame = send_frame;
+            *ec.ping = ping;
         }
     }
 }
@@ -131,11 +130,7 @@ pub fn init_session<QC: QueueComponent>(
     QC::User: UserState<Shared = QC::Shared>,
 {
     for mut session in sessions.iter_mut() {
-        if session
-            .lobby
-            .entities()
-            .fold(true, |b, e| b && accepted.contains(e))
-        {
+        if session.lobby.entities().all(|e| accepted.contains(e)) {
             let user_states =
                 <QC::User as UserState>::init(session.state.as_mut(), session.lobby.len());
             session

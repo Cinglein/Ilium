@@ -8,10 +8,10 @@ use axum::{
     response::IntoResponse,
 };
 use fastwebsockets::{
-    upgrade, FragmentCollectorRead, Frame, OpCode, Payload, WebSocketError, WebSocketWrite,
+    FragmentCollectorRead, Frame, OpCode, Payload, WebSocketError, WebSocketWrite, upgrade,
 };
 use session::{msg::Msg, token::ClientToken};
-use tokio::time::{sleep, Duration, Instant};
+use tokio::time::{Duration, Instant, sleep};
 
 async fn parse_message<Q: Queue, S: Sender<Queue = Q>>(
     msg: &[u8],

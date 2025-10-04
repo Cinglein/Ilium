@@ -8,10 +8,10 @@ use crate::{
     time::*,
     ws::ws_handler,
 };
-use axum::{extract::FromRef, routing::any, Router};
+use axum::{Router, extract::FromRef, routing::any};
 use bevy::prelude::{IntoScheduleConfigs, PluginGroup, System, Update};
-use leptos::{logging, prelude::*, IntoView};
-use leptos_axum::{file_and_error_handler, LeptosRoutes};
+use leptos::{IntoView, logging, prelude::*};
+use leptos_axum::{LeptosRoutes, file_and_error_handler};
 use session::Action;
 use sqlx::*;
 

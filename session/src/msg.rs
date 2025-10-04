@@ -1,5 +1,5 @@
 use crate::{AsQueue, ClientToken};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::fmt::Debug;
 
 pub trait Message = 'static + Clone + Send + Sync + Serialize + DeserializeOwned + Debug;

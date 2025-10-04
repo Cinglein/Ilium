@@ -1,7 +1,7 @@
+use crate::util::*;
 use proc_macro::TokenStream;
 use proc_macro_error::abort_call_site;
 use quote::{format_ident, quote};
-use crate::util::*;
 use syn::*;
 
 enum IliumFieldInfo {
@@ -15,13 +15,25 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
     let state: Ident = ast.ident;
     let info_name: Ident = format_ident!("{state}Info");
     let other: Type = if is_shared {
-        name_value(&ast.attrs, "user").unwrap_or_else(|| abort_call_site!("Could not find `user` attribute")) 
+        name_value(&ast.attrs, "user")
+            .unwrap_or_else(|| abort_call_site!("Could not find `user` attribute"))
     } else {
-        name_value(&ast.attrs, "shared").unwrap_or_else(|| abort_call_site!("Could not find `shared` attribute")) 
+        name_value(&ast.attrs, "shared")
+            .unwrap_or_else(|| abort_call_site!("Could not find `shared` attribute"))
     };
     let init = name_value::<Path>(&ast.attrs, "init")
-        .map(|path| if is_shared { quote!(#path(seed)) } else { quote!(#path(shared, users)) })
-        .unwrap_or(if is_shared { quote!(Default::default()) } else { quote!(vec![Default::default(); users]) });
+        .map(|path| {
+            if is_shared {
+                quote!(#path(seed))
+            } else {
+                quote!(#path(shared, users))
+            }
+        })
+        .unwrap_or(if is_shared {
+            quote!(Default::default())
+        } else {
+            quote!(vec![Default::default(); users])
+        });
     let mut open_name: Vec<Ident> = Vec::new();
     let mut open_type: Vec<Type> = Vec::new();
     let mut hidden_name: Vec<Ident> = Vec::new();
@@ -42,7 +54,10 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
                     IliumFieldInfo::Open { ty, name }
                 } else if let Some(hidden) = name_value::<HiddenFn>(&field.attrs, "hidden") {
                     hidden_fn.push(hidden.ident);
-                    IliumFieldInfo::Hidden { ty: hidden.output, name }
+                    IliumFieldInfo::Hidden {
+                        ty: hidden.output,
+                        name,
+                    }
                 } else {
                     IliumFieldInfo::Private { ty, name }
                 };
@@ -107,16 +122,16 @@ pub fn derive_state_impl(input: TokenStream, is_shared: bool) -> TokenStream {
                 proc_macro2::TokenStream::default()
             }
         }
-    }; 
+    };
 
     if is_shared {
         quote! {
             #info
             #timer
-            
+
             impl ::ilium::session::SharedState for #state {
                 type Info = #info_name;
-                type User = #other; 
+                type User = #other;
                 fn info<S: ::ilium::session::AsState<Shared = #state>>(index: S::Index, state: &S) -> Self::Info {
                     let shared = state.shared();
                     let shared: &#state = ::core::borrow::Borrow::borrow(&shared);
